@@ -607,15 +607,16 @@ function AppointmentsPage() {
                 ))}
               </div>
 
-              {trendData.map((item, index) => (
+              {trendData.map((item) => (
                 <div className="appointment-trends-bar" key={item.label}>
-                  {index === (highlightedTrendIndex >= 0 ? highlightedTrendIndex : 0) && item.count > 0 ? (
-                    <div className="appointment-tooltip">
-                      <strong>{item.label}</strong>
-                      <span>{item.count} Appointments</span>
-                    </div>
-                  ) : null}
-                  <span style={{ height: `${Math.max(22, Math.round((item.count / maxTrendCount) * 106))}px` }} />
+                  <div className="appointment-tooltip">
+                    <strong>{item.label}</strong>
+                    <span>{item.count} Appointment{item.count !== 1 ? 's' : ''}</span>
+                  </div>
+                  <span
+                    className="appointment-trends-bar__fill"
+                    style={{ height: `${Math.max(22, Math.round((item.count / maxTrendCount) * 106))}px` }}
+                  />
                   <small>{item.day}</small>
                 </div>
               ))}
@@ -631,22 +632,31 @@ function AppointmentsPage() {
             </div>
 
             <div className="appointment-type-summary">
-              {typeSummary.map((item) => (
-                <article className="appointment-type-item" key={item.label}>
+              {typeSummary.map((item, index) => (
+                <article
+                  className={`appointment-type-item appointment-type-item--${['dark', 'teal', 'soft', 'light'][index]}`}
+                  key={item.label}
+                >
+                  <div className="appointment-type-item__indicator" />
                   <strong>{item.label}</strong>
-                  <span>{item.percent}%</span>
+                  <span className="appointment-type-item__percent">{item.percent}%</span>
                   <small>{item.note}</small>
                 </article>
               ))}
             </div>
 
-            <div className="appointment-type-bars" aria-hidden="true">
-              {typeBars.map((bar) => (
-                <span
-                  key={bar.id}
-                  className={`appointment-type-bar${bar.tone ? ` appointment-type-bar--${bar.tone}` : ""}`}
-                />
-              ))}
+            <div className="appointment-type-bars">
+              {typeBars.map((bar) => {
+                const typeName = bar.id.split('-')[0];
+                return (
+                  <div
+                    key={bar.id}
+                    className={`appointment-type-bar${bar.tone ? ` appointment-type-bar--${bar.tone}` : ""}`}
+                  >
+                    <span className="appointment-type-bar__tooltip">{typeName}</span>
+                  </div>
+                );
+              })}
             </div>
           </article>
         </section>

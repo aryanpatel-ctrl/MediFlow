@@ -548,28 +548,18 @@ function DashboardPage() {
     const dayDate = new Date(weekStart);
     dayDate.setDate(weekStart.getDate() + index);
 
-    const dailyAppointments = weekAppointments.filter((appointment) => isSameDay(appointment.date, dayDate));
-    const scheduled = dailyAppointments.filter((appointment) =>
-      ["booked", "confirmed"].includes(appointment.status),
-    ).length;
-    const inCare = dailyAppointments.filter((appointment) =>
-      ["checked_in", "in_progress", "in_consultation", "completed"].includes(appointment.status),
-    ).length;
+    const mockData = [[45, 30, 25], [38, 56, 17], [40, 25, 38], [55, 35, 20], [32, 48, 26], [48, 28, 42], [50, 40, 20]];
 
     return {
       day: dayDate.toLocaleDateString("en-US", { weekday: "short" }),
-      scheduled,
-      inCare,
-      total: dailyAppointments.length,
+      scheduled: mockData[index][0],
+      inCare: mockData[index][1],
+      total: mockData[index][2],
     };
   });
 
-  const maxSeriesValue = Math.max(...weekSeries.map((item) => item.total), 0);
+  const maxSeriesValue = 60;
   const getBarHeight = (value) => {
-    if (maxSeriesValue === 0) {
-      return 22;
-    }
-
     return value > 0 ? Math.max(22, Math.round((value / maxSeriesValue) * 170)) : 12;
   };
 
@@ -644,29 +634,29 @@ function DashboardPage() {
 
   const statCards = [
     {
-      label: "Today's Appointments",
-      value: String(stats.totalAppointments),
-      delta: `${stats.completed} completed`,
+      label: "Overall Visitors",
+      value: "24,580",
+      delta: "+12% vs. yesterday",
+      icon: "OV",
+    },
+    {
+      label: "Total Patients",
+      value: "8,340",
+      delta: "+1.5% vs. last week",
+      icon: "TP",
+    },
+    {
+      label: "Appointments",
+      value: "1,275",
+      delta: "+8% vs. yesterday",
       icon: "AP",
-    },
-    {
-      label: "Total Doctors",
-      value: String(stats.totalDoctors || doctors.length),
-      delta: `${availableDoctors} available`,
-      icon: "DR",
-    },
-    {
-      label: "Pending",
-      value: String(stats.pending),
-      delta: stats.ongoing > 0 ? `${stats.ongoing} in consultation` : "Awaiting consultation",
-      icon: "PN",
     },
   ];
 
   return (
     <AppLayout title="Dashboard" subtitle={`Hello ${firstName}, welcome back!`}>
       <main className="dashboard-content">
-        <section className="dashboard-grid dashboard-grid--hospital">
+        <section className="dashboard-grid">
           <section className="metric-grid dashboard-section dashboard-section--metrics" aria-label="Overview statistics">
             {statCards.map((card) => (
               <MetricCard key={card.label} {...card} />
@@ -676,9 +666,9 @@ function DashboardPage() {
           <section className="panel panel-chart dashboard-section dashboard-section--chart">
             <div className="panel-header">
               <div>
-                <h2>Appointments by Day</h2>
-                <p>This week appointments</p>
-                <strong className="panel-kpi">{weekAppointments.length}</strong>
+                <h2>Patient by Age Stages</h2>
+                <p>Total Patients</p>
+                <strong className="panel-kpi">465</strong>
               </div>
               <button type="button">This Week</button>
             </div>
@@ -686,15 +676,15 @@ function DashboardPage() {
             <div className="chart-legend">
               <span>
                 <i className="legend-dot legend-dot--soft" />
-                Scheduled
+                Children
               </span>
               <span>
                 <i className="legend-dot legend-dot--teal" />
-                In Care
+                Teens
               </span>
               <span>
                 <i className="legend-dot legend-dot--dark" />
-                Total
+                Adults
               </span>
             </div>
 
@@ -715,15 +705,15 @@ function DashboardPage() {
           <section className="panel panel-donut dashboard-section dashboard-section--departments">
             <div className="panel-header panel-header--tight">
               <div>
-                <h2>Doctors by Departments</h2>
+                <h2>Patient by Departments</h2>
               </div>
             </div>
 
             <div className="donut-wrap">
               <div className="donut-chart">
                 <div>
-                  <strong>{departmentMap.size}</strong>
-                  <span>Departments</span>
+                  <strong>All Patients</strong>
+                  <span style={{color: 'var(--text)', fontSize: '1.4rem', fontWeight: 'bold'}}>8,340</span>
                 </div>
               </div>
             </div>
@@ -748,7 +738,7 @@ function DashboardPage() {
           <section className="panel panel-revenue dashboard-section dashboard-section--revenue">
             <div className="panel-header">
               <div>
-                <h2>Hospital Flow</h2>
+                <h2>Revenue</h2>
               </div>
               <button type="button">Today</button>
             </div>
