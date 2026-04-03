@@ -1,0 +1,152 @@
+import { NavLink, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useAuth } from "../hooks";
+
+// Navigation items by role
+const getNavigationItems = (role) => {
+  if (role === 'super_admin') {
+    return [
+      { label: "Dashboard", shortLabel: "SA", path: "/super-admin" },
+    ];
+  }
+
+  if (role === 'hospital_admin') {
+    return [
+      { label: "Dashboard", shortLabel: "DB", path: "/" },
+      { label: "Appointments", shortLabel: "AP", path: "/appointments" },
+      { label: "Doctors", shortLabel: "DR", path: "/doctors" },
+      { label: "Patients", shortLabel: "PT", path: "/patients" },
+      { label: "Add Doctor", shortLabel: "AD", path: "/doctors/add" },
+      { label: "Settings", shortLabel: "ST", path: "/settings" },
+    ];
+  }
+
+  if (role === 'doctor') {
+    return [
+      { label: "My Dashboard", shortLabel: "DB", path: "/doctor/dashboard" },
+    ];
+  }
+
+  if (role === 'patient') {
+    return [
+      { label: "Book Appointment", shortLabel: "AI", path: "/chat" },
+      { label: "My Appointments", shortLabel: "MA", path: "/my-appointments" },
+    ];
+  }
+
+  // Default for unknown roles
+  return [
+    { label: "Dashboard", shortLabel: "DB", path: "/" },
+  ];
+};
+
+function Sidebar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const navigationItems = getNavigationItems(user?.role);
+
+  const handleSignOut = () => {
+    logout();
+    toast.success("Logged out successfully");
+    navigate("/login");
+  };
+
+  return (
+    <aside className="sidebar">
+      <div className="brand">
+        <span className="brand-mark">MQ</span>
+        <div>
+          <strong>MedQueue AI</strong>
+          <p>Smart Healthcare</p>
+        </div>
+      </div>
+
+      <nav className="nav-list" aria-label="Primary">
+        {navigationItems.map((item) => (
+          <NavLink
+            className={({ isActive }) => `nav-item${isActive ? " is-active" : ""}`}
+            to={item.path}
+            key={item.label}
+            end={item.path === "/" || item.path === "/doctor/dashboard"}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              {item.shortLabel}
+            </span>
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Super Admin Info */}
+      {user?.role === 'super_admin' && (
+        <div className="sidebar-upgrade">
+          <div className="upgrade-illustration">
+            <span>SA</span>
+          </div>
+          <h3>Super Admin</h3>
+          <p>Manage hospitals and their administrators.</p>
+        </div>
+      )}
+
+      {/* AI Triage Card - Show for patients */}
+      {user?.role === 'patient' && (
+        <div className="sidebar-upgrade">
+          <div className="upgrade-illustration">
+            <span>AI</span>
+          </div>
+          <h3>AI Triage</h3>
+          <p>Smart symptom analysis with GPT-4o powered chatbot.</p>
+          <NavLink to="/chat" style={{ textDecoration: "none" }}>
+            <button type="button">Book Now</button>
+          </NavLink>
+        </div>
+      )}
+
+      {/* Hospital Info - Show for hospital admin */}
+      {user?.role === 'hospital_admin' && (
+        <div className="sidebar-upgrade">
+          <div className="upgrade-illustration">
+            <span>H</span>
+          </div>
+          <h3>Hospital Admin</h3>
+          <p>Manage doctors, view appointments, and monitor queue.</p>
+          <NavLink to="/settings" style={{ textDecoration: "none" }}>
+            <button type="button">Settings</button>
+          </NavLink>
+        </div>
+      )}
+
+      {/* Doctor Info */}
+      {user?.role === 'doctor' && (
+        <div className="sidebar-upgrade">
+          <div className="upgrade-illustration">
+            <span>Q</span>
+          </div>
+          <h3>Queue Management</h3>
+          <p>Manage your patient queue and consultations.</p>
+        </div>
+      )}
+
+      {user && (
+        <div className="sidebar-user">
+          <div className="sidebar-user-info">
+            <span className="sidebar-user-avatar">
+              {user.name?.charAt(0).toUpperCase()}
+            </span>
+            <div>
+              <strong>{user.name}</strong>
+              <p>{user.role?.replace("_", " ")}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button className="sign-out" type="button" onClick={handleSignOut}>
+        Sign Out
+      </button>
+    </aside>
+  );
+}
+
+export default Sidebar;
