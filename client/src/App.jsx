@@ -21,6 +21,8 @@ import DoctorOnboarding from "./pages/DoctorOnboarding";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import HospitalSettings from "./pages/HospitalSettings";
+import PrescriptionPage from "./pages/PrescriptionPage";
+import QueueDashboardPage from "./pages/QueueDashboardPage";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -191,6 +193,26 @@ function App() {
         element={
           <ProtectedRoute>
             <MessagesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Prescription Page - Doctor */}
+      <Route
+        path="/prescription"
+        element={
+          <ProtectedRoute>
+            <PrescriptionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Queue Dashboard - Hospital Admin */}
+      <Route
+        path="/queue-dashboard"
+        element={
+          <ProtectedRoute>
+            <QueueDashboardPage />
           </ProtectedRoute>
         }
       />

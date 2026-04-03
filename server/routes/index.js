@@ -8,6 +8,8 @@ const appointmentRoutes = require('./appointments');
 const chatRoutes = require('./chat');
 const queueRoutes = require('./queue');
 const notificationRoutes = require('./notifications');
+const medicineRoutes = require('./medicines');
+const prescriptionRoutes = require('./prescriptions');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -17,6 +19,8 @@ router.use('/appointments', appointmentRoutes);
 router.use('/chat', chatRoutes);
 router.use('/queue', queueRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/medicines', medicineRoutes);
+router.use('/prescriptions', prescriptionRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

@@ -8,6 +8,7 @@ const getNavigationItems = (role) => {
   if (role === 'hospital_admin') {
     return [
       { label: "Dashboard", shortLabel: "DB", path: "/" },
+      { label: "Queue", shortLabel: "QU", path: "/queue-dashboard" },
       { label: "Appointments", shortLabel: "AP", path: "/appointments" },
       { label: "Patients", shortLabel: "PT", path: "/patients" },
       { label: "Doctors", shortLabel: "DR", path: "/doctors" },
@@ -19,6 +20,8 @@ const getNavigationItems = (role) => {
   if (role === 'doctor') {
     return [
       { label: "My Dashboard", shortLabel: "DB", path: "/doctor/dashboard" },
+      { label: "My Patients", shortLabel: "PT", path: "/patients" },
+      { label: "Appointments", shortLabel: "AP", path: "/appointments" },
     ];
   }
 

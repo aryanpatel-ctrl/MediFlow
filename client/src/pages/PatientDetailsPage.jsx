@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
+import { useAuth } from "../hooks";
 import api from "../services/api";
 
 const pressureBars = [62, 74, 55, 69, 80, 83, 72, 77, 68, 75, 88, 81];
@@ -8,8 +9,10 @@ const pressureBars = [62, 74, 55, 69, 80, 83, 72, 77, 68, 75, 88, 81];
 function PatientDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,6 +34,16 @@ function PatientDetailsPage() {
       } catch {
         // If no appointments endpoint, try alternative
         setAppointments([]);
+      }
+
+      // Fetch patient prescriptions (for doctors/admins)
+      if (user?.role === 'doctor' || user?.role === 'hospital_admin') {
+        try {
+          const prescriptionsRes = await api.get(`/prescriptions/patient/${id}`);
+          setPrescriptions(prescriptionsRes.data.prescriptions || []);
+        } catch {
+          setPrescriptions([]);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch patient details:", error);
@@ -156,6 +169,15 @@ function PatientDetailsPage() {
                     <h2>{patient.name}</h2>
                     <p>{patientCode}</p>
                   </div>
+                  {user?.role === 'doctor' && (
+                    <button
+                      className="btn-primary"
+                      style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                      onClick={() => navigate(`/prescription?patientId=${id}`)}
+                    >
+                      Create Prescription
+                    </button>
+                  )}
                   <button className="panel-more" type="button" aria-label="Patient actions">
                     ...
                   </button>
@@ -350,6 +372,54 @@ function PatientDetailsPage() {
                 </div>
               </div>
             </section>
+
+            {/* Prescriptions - For Doctors/Admins */}
+            {(user?.role === 'doctor' || user?.role === 'hospital_admin') && (
+              <section className="panel">
+                <div className="panel-header panel-header--tight">
+                  <h2>Prescriptions</h2>
+                  <button className="panel-more" type="button" aria-label="Prescriptions actions">
+                    ...
+                  </button>
+                </div>
+                {prescriptions.length > 0 ? (
+                  <div className="prescriptions-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {prescriptions.map((rx) => (
+                      <div key={rx._id} className="prescription-item" style={{
+                        padding: '12px',
+                        borderBottom: '1px solid #e5e7eb',
+                        cursor: 'pointer'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong style={{ color: '#0d9488', fontSize: '0.9rem' }}>
+                            {rx.prescriptionNumber}
+                          </strong>
+                          <span style={{
+                            fontSize: '0.75rem',
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            background: rx.status === 'active' ? '#dcfce7' : '#f3f4f6',
+                            color: rx.status === 'active' ? '#166534' : '#6b7280'
+                          }}>
+                            {rx.status}
+                          </span>
+                        </div>
+                        <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#374151' }}>
+                          {rx.diagnosis}
+                        </p>
+                        <p style={{ margin: '0', fontSize: '0.75rem', color: '#9ca3af' }}>
+                          {formatDate(rx.createdAt)} | {rx.medications?.length || 0} medications
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: '#6b7280', padding: '1rem', textAlign: 'center' }}>
+                    No prescriptions found
+                  </p>
+                )}
+              </section>
+            )}
 
             {/* Appointments Table */}
             <section className="panel">

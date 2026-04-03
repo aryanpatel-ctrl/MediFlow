@@ -206,4 +206,99 @@ queueSchema.methods.getSummary = function() {
   };
 };
 
+// Static method to find or create queue for a doctor on a specific date
+queueSchema.statics.findOrCreateQueue = async function(doctorId, hospitalId, date = new Date()) {
+  const queueDate = new Date(date);
+  queueDate.setHours(0, 0, 0, 0);
+
+  let queue = await this.findOne({ doctorId, date: queueDate });
+
+  if (!queue) {
+    queue = await this.create({
+      doctorId,
+      hospitalId,
+      date: queueDate,
+      status: 'not_started',
+      entries: [],
+      totalPatients: 0
+    });
+  }
+
+  return queue;
+};
+
+// Static method to get hospital-wide queue summary for dashboard
+queueSchema.statics.getHospitalSummary = async function(hospitalId, date = new Date()) {
+  const queueDate = new Date(date);
+  queueDate.setHours(0, 0, 0, 0);
+
+  const queues = await this.find({ hospitalId, date: queueDate })
+    .populate({
+      path: 'doctorId',
+      populate: { path: 'userId', select: 'name email' }
+    });
+
+  let totalWaiting = 0;
+  let totalInProgress = 0;
+  let totalCompleted = 0;
+  let totalNoShow = 0;
+  const doctorQueues = [];
+
+  queues.forEach(queue => {
+    const waiting = queue.entries.filter(e => e.status === 'waiting').length;
+    const inProgress = queue.entries.filter(e => e.status === 'in_consultation').length;
+    const completed = queue.entries.filter(e => e.status === 'completed').length;
+    const noShow = queue.entries.filter(e => e.status === 'no_show').length;
+
+    totalWaiting += waiting;
+    totalInProgress += inProgress;
+    totalCompleted += completed;
+    totalNoShow += noShow;
+
+    doctorQueues.push({
+      queueId: queue._id,
+      doctorId: queue.doctorId._id,
+      doctorName: queue.doctorId.userId?.name || 'Unknown',
+      specialty: queue.doctorId.specialty,
+      status: queue.status,
+      waiting,
+      inProgress,
+      completed,
+      noShow,
+      total: queue.totalPatients,
+      currentDelay: queue.currentDelay,
+      avgWaitTime: queue.avgWaitTime
+    });
+  });
+
+  return {
+    date: queueDate,
+    totalDoctors: queues.length,
+    totalWaiting,
+    totalInProgress,
+    totalCompleted,
+    totalNoShow,
+    totalPatients: totalWaiting + totalInProgress + totalCompleted + totalNoShow,
+    doctorQueues
+  };
+};
+
+// Static method to get detailed queue for a doctor
+queueSchema.statics.getDoctorQueueDetails = async function(doctorId, date = new Date()) {
+  const queueDate = new Date(date);
+  queueDate.setHours(0, 0, 0, 0);
+
+  const queue = await this.findOne({ doctorId, date: queueDate })
+    .populate({
+      path: 'entries.patientId',
+      select: 'name email phone'
+    })
+    .populate({
+      path: 'entries.appointmentId',
+      select: 'type reason scheduledTime'
+    });
+
+  return queue;
+};
+
 module.exports = mongoose.model('Queue', queueSchema);
