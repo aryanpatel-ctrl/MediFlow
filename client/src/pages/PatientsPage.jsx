@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
 
 function PatientsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -161,7 +163,10 @@ function PatientsPage() {
                   {filteredPatients.map((row) => (
                     <tr key={row._id}>
                       <td>
-                        <div className="table-person">
+                        <div
+                          className="table-person table-person-clickable"
+                          onClick={() => navigate(`/patients/${row._id}`)}
+                        >
                           <span className="table-avatar">
                             {row.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
                           </span>

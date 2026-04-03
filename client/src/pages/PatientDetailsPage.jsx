@@ -1,26 +1,160 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import {
-  healthReportItems,
-  medicationRows,
-  patientAppointments,
-  patientVitals,
-} from "../data/navigation";
+import api from "../services/api";
 
 const pressureBars = [62, 74, 55, 69, 80, 83, 72, 77, 68, 75, 88, 81];
 
 function PatientDetailsPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [patient, setPatient] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      fetchPatientDetails();
+    }
+  }, [id]);
+
+  const fetchPatientDetails = async () => {
+    try {
+      // Fetch patient info
+      const patientRes = await api.get(`/appointments/patients/${id}`);
+      setPatient(patientRes.data.patient);
+
+      // Fetch patient appointments
+      try {
+        const appointmentsRes = await api.get(`/appointments/patients/${id}/history`);
+        setAppointments(appointmentsRes.data.appointments || []);
+      } catch {
+        // If no appointments endpoint, try alternative
+        setAppointments([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch patient details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "PT";
+    return name.split(" ").map(part => part[0]).join("").slice(0, 2).toUpperCase();
+  };
+
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return "--";
+    const today = new Date();
+    const birth = new Date(dateOfBirth);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "--";
+    return new Date(date).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getStatusClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case "completed": return "completed";
+      case "booked":
+      case "confirmed": return "scheduled";
+      case "in_progress":
+      case "checked_in": return "ongoing";
+      case "cancelled":
+      case "no_show": return "canceled";
+      default: return "scheduled";
+    }
+  };
+
+  const formatStatus = (status) => {
+    if (!status) return "Scheduled";
+    return status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  if (loading) {
+    return (
+      <AppLayout title="Patient Details" subtitle="Loading...">
+        <div className="loading-screen">
+          <div className="loading-spinner"></div>
+          <p>Loading patient details...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <AppLayout title="Patient Details" subtitle="Not Found">
+        <div className="empty-state" style={{ textAlign: "center", padding: "3rem" }}>
+          <p style={{ fontSize: "1.1rem", color: "#6b7280" }}>Patient not found</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="btn-primary"
+            style={{ marginTop: "1rem", padding: "0.75rem 1.5rem", borderRadius: "8px", border: "none", cursor: "pointer" }}
+          >
+            Go Back
+          </button>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const patientCode = `#PT-${String(patient._id?.slice(-6) || "000000").toUpperCase()}`;
+  const age = calculateAge(patient.dateOfBirth);
+  const gender = patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : "--";
+
+  // Get stats
+  const completedAppointments = appointments.filter(a => a.status === "completed").length;
+  const upcomingAppointments = appointments.filter(a =>
+    ["booked", "confirmed"].includes(a.status) && new Date(a.date) >= new Date()
+  ).length;
+  const cancelledAppointments = appointments.filter(a =>
+    ["cancelled", "no_show"].includes(a.status)
+  ).length;
+
   return (
-    <AppLayout title="Patient Details" subtitle="Patients / Patient Details">
+    <AppLayout title="Patient Details" subtitle={`Patients / ${patient.name}`}>
       <main className="patient-details-page">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            marginBottom: "1rem",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#0d9488",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.95rem",
+            fontWeight: "500"
+          }}
+        >
+          ← Back to Appointments
+        </button>
+
         <section className="patient-details-top">
           <section className="panel patient-profile-card">
             <div className="patient-profile-main">
-              <div className="patient-profile-photo">DW</div>
+              <div className="patient-profile-photo">{getInitials(patient.name)}</div>
               <div className="patient-profile-info">
                 <div className="patient-profile-head">
                   <div>
-                    <h2>Daniel Wong</h2>
-                    <p>#PT-2035-078</p>
+                    <h2>{patient.name}</h2>
+                    <p>{patientCode}</p>
                   </div>
                   <button className="panel-more" type="button" aria-label="Patient actions">
                     ...
@@ -28,36 +162,35 @@ function PatientDetailsPage() {
                 </div>
 
                 <div className="patient-contact-row">
-                  <span>+62 812-9012-4477</span>
-                  <span>daniel.wong@hospital.com</span>
-                  <span>Jl. Kaliurang No. 36, Yogyakarta</span>
-                  <span>+62 812-9988-4411 (Spouse)</span>
+                  <span>{patient.phone || "--"}</span>
+                  <span>{patient.email || "--"}</span>
+                  {patient.address && <span>{patient.address}</span>}
                 </div>
 
                 <div className="patient-meta-grid">
                   <div>
                     <small>Age & Gender</small>
-                    <strong>42 / Male</strong>
+                    <strong>{age !== "--" ? `${age} / ${gender}` : `-- / ${gender}`}</strong>
                   </div>
                   <div>
                     <small>DOB</small>
-                    <strong>23 July 1993</strong>
+                    <strong>{formatDate(patient.dateOfBirth)}</strong>
                   </div>
                   <div>
                     <small>Blood Type</small>
-                    <strong>O+</strong>
+                    <strong>{patient.bloodType || "--"}</strong>
                   </div>
                   <div>
-                    <small>Occupation</small>
-                    <strong>Project Manager</strong>
+                    <small>Total Visits</small>
+                    <strong>{patient.totalAppointments || appointments.length || 0}</strong>
                   </div>
                   <div>
                     <small>Status</small>
-                    <strong>Post-Op (Inpatient)</strong>
+                    <strong style={{ color: "#10b981" }}>{patient.isVerified ? "Verified" : "Active"}</strong>
                   </div>
                   <div>
-                    <small>Insurance</small>
-                    <strong>BPJS - Class 1</strong>
+                    <small>Member Since</small>
+                    <strong>{formatDate(patient.createdAt)}</strong>
                   </div>
                 </div>
               </div>
@@ -65,46 +198,59 @@ function PatientDetailsPage() {
           </section>
 
           <aside className="panel patient-id-card">
-            <div className="patient-id-brand">Medlink</div>
+            <div className="patient-id-brand">MedQueue AI</div>
             <div className="patient-id-body">
-              <strong>Daniel Wong</strong>
-              <p>#PT-2035-078</p>
+              <strong>{patient.name}</strong>
+              <p>{patientCode}</p>
             </div>
             <div className="patient-id-footer">
-              <span>09:35</span>
-              <span>Every Day</span>
+              <span>{completedAppointments} Completed</span>
+              <span>{upcomingAppointments} Upcoming</span>
             </div>
           </aside>
         </section>
 
         <section className="patient-details-grid">
           <div className="patient-details-main">
+            {/* Stats Cards */}
             <section className="patient-vitals-grid">
-              {patientVitals.map((item) => (
-                <article className="panel patient-vital-card" key={item.label}>
-                  <div className="patient-vital-icon">{item.icon}</div>
-                  <p>{item.label}</p>
-                  <strong>{item.value}</strong>
-                </article>
-              ))}
+              <article className="panel patient-vital-card">
+                <div className="patient-vital-icon" style={{ background: "#e0f2fe", color: "#0284c7" }}>TA</div>
+                <p>Total Appointments</p>
+                <strong>{appointments.length || patient.totalAppointments || 0}</strong>
+              </article>
+              <article className="panel patient-vital-card">
+                <div className="patient-vital-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>CP</div>
+                <p>Completed</p>
+                <strong>{completedAppointments}</strong>
+              </article>
+              <article className="panel patient-vital-card">
+                <div className="patient-vital-icon" style={{ background: "#fef3c7", color: "#d97706" }}>UP</div>
+                <p>Upcoming</p>
+                <strong>{upcomingAppointments}</strong>
+              </article>
+              <article className="panel patient-vital-card">
+                <div className="patient-vital-icon" style={{ background: "#fee2e2", color: "#dc2626" }}>CN</div>
+                <p>Cancelled</p>
+                <strong>{cancelledAppointments}</strong>
+              </article>
             </section>
 
+            {/* Visit History Chart */}
             <section className="panel blood-pressure-card">
               <div className="panel-header">
                 <div>
-                  <h2>Blood Pressure</h2>
+                  <h2>Visit History</h2>
                 </div>
-                <p>Last check-up: Feb 23, 2035</p>
+                <p>Last 12 months</p>
               </div>
               <div className="pressure-legend">
-                <span><i className="legend-dot legend-dot--soft" /> Heart Rate</span>
-                <span><i className="legend-dot legend-dot--teal" /> Blood Pressure</span>
+                <span><i className="legend-dot legend-dot--teal" /> Appointments</span>
               </div>
               <div className="pressure-chart" aria-hidden="true">
                 {pressureBars.map((value, index) => (
                   <div className="pressure-bar-group" key={index}>
-                    <span className="pressure-bar pressure-bar--top" style={{ height: `${value}px` }} />
-                    <span className="pressure-bar pressure-bar--bottom" style={{ height: `${Math.max(35, value - 22)}px` }} />
+                    <span className="pressure-bar pressure-bar--bottom" style={{ height: `${Math.max(20, value - 20)}px` }} />
                   </div>
                 ))}
               </div>
@@ -115,44 +261,60 @@ function PatientDetailsPage() {
               </div>
             </section>
 
+            {/* Medical Info */}
             <section className="patient-bottom-grid">
               <section className="panel">
                 <div className="panel-header panel-header--tight">
-                  <h2>Health Reports</h2>
-                  <button className="panel-more" type="button" aria-label="Health reports actions">
+                  <h2>Medical History</h2>
+                  <button className="panel-more" type="button" aria-label="Medical history actions">
                     ...
                   </button>
                 </div>
-                <ul className="file-list">
-                  {healthReportItems.map((item) => (
-                    <li key={item}>
-                      <span className="file-mark" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                {patient.medicalHistory?.length > 0 ? (
+                  <ul className="file-list">
+                    {patient.medicalHistory.map((item, idx) => (
+                      <li key={idx}>
+                        <span className="file-mark" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ color: "#6b7280", padding: "1rem 0" }}>No medical history recorded</p>
+                )}
               </section>
 
               <section className="panel">
                 <div className="panel-header panel-header--tight">
-                  <h2>Patient Note</h2>
-                  <button className="panel-more" type="button" aria-label="Patient note actions">
+                  <h2>Patient Notes</h2>
+                  <button className="panel-more" type="button" aria-label="Notes actions">
                     ...
                   </button>
                 </div>
-                <div className="patient-note-card">
-                  <strong>Dr. Sam Jaguar</strong>
-                  <p>On Duty Doctor</p>
-                  <div className="patient-note-copy">
-                    Daniel is stable post-op with well-controlled pain and early mobilization is planned.
-                    Continue regular blood pressure monitoring and adjust medication if pain or hypertension worsens.
+                {appointments.filter(a => a.triageData?.preVisitSummary || a.notes).length > 0 ? (
+                  <div className="patient-note-card">
+                    {(() => {
+                      const latestNote = appointments.find(a => a.triageData?.preVisitSummary || a.notes);
+                      return latestNote ? (
+                        <>
+                          <strong>{latestNote.doctorId?.userId?.name || "Doctor"}</strong>
+                          <p>{formatDate(latestNote.date)}</p>
+                          <div className="patient-note-copy">
+                            {latestNote.triageData?.preVisitSummary || latestNote.notes}
+                          </div>
+                        </>
+                      ) : null;
+                    })()}
                   </div>
-                </div>
+                ) : (
+                  <p style={{ color: "#6b7280", padding: "1rem 0" }}>No notes recorded</p>
+                )}
               </section>
             </section>
           </div>
 
           <div className="patient-details-side">
+            {/* Medical Summary */}
             <section className="panel">
               <div className="panel-header panel-header--tight">
                 <h2>Medical Info</h2>
@@ -165,113 +327,81 @@ function PatientDetailsPage() {
                 <div className="medical-box">
                   <small>Conditions</small>
                   <div className="medical-tags">
-                    <span>Bone Fracture</span>
-                    <span>Hypertension</span>
-                    <span>Left Tibia (Post Surgery)</span>
-                    <span>Controlled</span>
+                    {patient.conditions?.length > 0 ? (
+                      patient.conditions.map((condition, idx) => (
+                        <span key={idx}>{condition}</span>
+                      ))
+                    ) : (
+                      <span style={{ background: "#f3f4f6", color: "#6b7280" }}>None recorded</span>
+                    )}
                   </div>
                 </div>
                 <div className="medical-box">
                   <small>Allergies</small>
                   <div className="medical-tags">
-                    <span>Penicillin</span>
-                    <span>Aspirin</span>
-                    <span>Shellfish</span>
-                    <span>Dust Mites</span>
-                    <span>Peanuts</span>
+                    {patient.allergies?.length > 0 ? (
+                      patient.allergies.map((allergy, idx) => (
+                        <span key={idx} style={{ background: "#fef2f2", color: "#991b1b" }}>{allergy}</span>
+                      ))
+                    ) : (
+                      <span style={{ background: "#f3f4f6", color: "#6b7280" }}>None recorded</span>
+                    )}
                   </div>
                 </div>
               </div>
-
-              <div className="table-wrap">
-                <table className="medical-table">
-                  <thead>
-                    <tr>
-                      <th />
-                      <th>Name</th>
-                      <th>Dosage</th>
-                      <th>Frequency</th>
-                      <th>Start - End Date</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {medicationRows.map((row) => (
-                      <tr key={row.name}>
-                        <td>
-                          <span className="table-check" aria-hidden="true" />
-                        </td>
-                        <td>
-                          <div className="table-meta">
-                            <strong>{row.name}</strong>
-                            <p>{row.form}</p>
-                          </div>
-                        </td>
-                        <td>{row.dosage}</td>
-                        <td>{row.frequency}</td>
-                        <td>{row.startEnd}</td>
-                        <td>
-                          <span className={`status-pill status-${row.status.toLowerCase()}`}>
-                            {row.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </section>
 
+            {/* Appointments Table */}
             <section className="panel">
               <div className="panel-header panel-header--tight">
                 <h2>Appointments</h2>
-                <button className="panel-more" type="button" aria-label="Appointments history actions">
+                <button className="panel-more" type="button" aria-label="Appointments actions">
                   ...
                 </button>
               </div>
               <div className="appointment-tabs" aria-hidden="true">
                 <span className="is-active">All</span>
                 <span>Upcoming</span>
-                <span>History</span>
+                <span>Completed</span>
               </div>
               <div className="table-wrap">
-                <table className="patient-history-table">
-                  <thead>
-                    <tr>
-                      <th />
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Type</th>
-                      <th>Doctor</th>
-                      <th>Status</th>
-                      <th>Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patientAppointments.map((row) => (
-                      <tr key={`${row.date}-${row.time}`}>
-                        <td>
-                          <span className="table-check" aria-hidden="true" />
-                        </td>
-                        <td>{row.date}</td>
-                        <td>{row.time}</td>
-                        <td>{row.type}</td>
-                        <td>
-                          <div className="table-meta">
-                            <strong>{row.doctor}</strong>
-                            <p>{row.specialty}</p>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`status-pill status-${row.status.toLowerCase()}`}>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td>{row.note}</td>
+                {appointments.length > 0 ? (
+                  <table className="patient-history-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Doctor</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {appointments.slice(0, 10).map((apt) => (
+                        <tr key={apt._id}>
+                          <td>{formatDate(apt.date)}</td>
+                          <td>{apt.slotTime || "--"}</td>
+                          <td>{apt.appointmentType || "Consultation"}</td>
+                          <td>
+                            <div className="table-meta">
+                              <strong>{apt.doctorId?.userId?.name || "Doctor"}</strong>
+                              <p>{apt.doctorId?.specialty || ""}</p>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`status-pill status-${getStatusClass(apt.status)}`}>
+                              {formatStatus(apt.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p style={{ color: "#6b7280", padding: "1.5rem", textAlign: "center" }}>
+                    No appointments found
+                  </p>
+                )}
               </div>
             </section>
           </div>

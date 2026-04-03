@@ -42,8 +42,7 @@ const hospitalSchema = new mongoose.Schema({
     default: 'private'
   },
   registrationNumber: {
-    type: String,
-    required: [true, 'Hospital registration number is required']
+    type: String
   },
   email: {
     type: String,

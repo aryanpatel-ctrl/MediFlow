@@ -22,16 +22,13 @@ export default function Login() {
 
       // Redirect based on role
       switch (user.role) {
-        case 'patient':
-          navigate('/patient');
-          break;
         case 'doctor':
-          navigate('/doctor');
+          navigate('/doctor/dashboard');
           break;
         case 'hospital_admin':
-        case 'super_admin':
-          navigate('/admin');
+          navigate('/');
           break;
+        case 'patient':
         default:
           navigate('/');
       }

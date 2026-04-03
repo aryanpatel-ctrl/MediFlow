@@ -90,11 +90,6 @@ const hospitalAccess = async (req, res, next) => {
       });
     }
 
-    // Super admin can access all hospitals
-    if (req.user.role === 'super_admin') {
-      return next();
-    }
-
     // Check if user belongs to this hospital
     if (req.user.hospitalId?.toString() !== hospitalId) {
       return res.status(403).json({

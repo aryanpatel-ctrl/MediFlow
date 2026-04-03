@@ -5,6 +5,241 @@ import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
 
+const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@medqueue.ai";
+const DEPARTMENT_BULLET_TONES = ["dark", "light", "aqua", "soft", "muted", "pale"];
+const CALENDAR_DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+const startOfDay = (dateValue = new Date()) => {
+  const date = new Date(dateValue);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const isSameDay = (left, right) => startOfDay(left).getTime() === startOfDay(right).getTime();
+
+const getWeekBounds = (dateValue = new Date()) => {
+  const reference = startOfDay(dateValue);
+  const day = reference.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const start = new Date(reference);
+  start.setDate(reference.getDate() + mondayOffset);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return { start, end };
+};
+
+const getInitials = (value = "") =>
+  value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+const getAppointmentDateTime = (appointment) => {
+  const date = startOfDay(appointment?.date || new Date());
+
+  if (typeof appointment?.slotTime === "string") {
+    const [hoursText = "0", minutesText = "0"] = appointment.slotTime.split(":");
+    const hours = Number.parseInt(hoursText, 10);
+    const minutes = Number.parseInt(minutesText, 10);
+
+    date.setHours(Number.isNaN(hours) ? 0 : hours, Number.isNaN(minutes) ? 0 : minutes, 0, 0);
+  }
+
+  return date;
+};
+
+const compareAppointmentsAsc = (left, right) => getAppointmentDateTime(left) - getAppointmentDateTime(right);
+const compareAppointmentsDesc = (left, right) => getAppointmentDateTime(right) - getAppointmentDateTime(left);
+
+const formatAppointmentType = (appointment) => {
+  if (appointment.appointmentType) {
+    return appointment.appointmentType;
+  }
+
+  switch (appointment.bookingSource) {
+    case "voice_call":
+      return "Telemedicine";
+    case "reschedule":
+      return "Follow-up";
+    default:
+      return "Consultation";
+  }
+};
+
+const formatAppointmentStatus = (status) => {
+  switch (status) {
+    case "in_progress":
+    case "in_consultation":
+      return "Ongoing";
+    case "no_show":
+      return "No Show";
+    case "checked_in":
+      return "Checked In";
+    default:
+      return (status || "Booked")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+};
+
+const getStatusClass = (status) => {
+  switch ((status || "").toLowerCase()) {
+    case "completed":
+      return "completed";
+    case "booked":
+    case "confirmed":
+      return "scheduled";
+    case "checked_in":
+    case "in_progress":
+    case "in_consultation":
+      return "ongoing";
+    case "cancelled":
+    case "no_show":
+      return "canceled";
+    case "available":
+      return "available";
+    case "busy":
+      return "busy";
+    case "offline":
+    case "unavailable":
+      return "offline";
+    default:
+      return "scheduled";
+  }
+};
+
+const countAppointmentStats = (appointments) =>
+  appointments.reduce(
+    (totals, appointment) => {
+      totals.total += 1;
+
+      if (appointment.status === "completed") {
+        totals.completed += 1;
+      } else if (["checked_in", "in_consultation", "in_progress"].includes(appointment.status)) {
+        totals.ongoing += 1;
+      } else if (["cancelled", "no_show"].includes(appointment.status)) {
+        totals.cancelled += 1;
+      } else {
+        totals.scheduled += 1;
+      }
+
+      return totals;
+    },
+    {
+      total: 0,
+      completed: 0,
+      ongoing: 0,
+      cancelled: 0,
+      scheduled: 0,
+    },
+  );
+
+const buildMockDashboardAppointments = (doctors = []) => {
+  const fallbackDoctors = [
+    { doctorName: "Dr. Rajesh Sharma", doctorSpecialty: "General Medicine" },
+    { doctorName: "Dr. Priya Patel", doctorSpecialty: "Cardiology" },
+    { doctorName: "Dr. Amit Kumar", doctorSpecialty: "Orthopedics" },
+    { doctorName: "Dr. Sneha Reddy", doctorSpecialty: "Pediatrics" },
+    { doctorName: "Dr. Kiran Mehta", doctorSpecialty: "Dermatology" },
+  ];
+
+  const doctorPool = doctors.length
+    ? doctors.map((doctor) => ({
+        doctorName: doctor.name || "Doctor",
+        doctorSpecialty: doctor.specialty || "General Medicine",
+      }))
+    : fallbackDoctors;
+
+  const pickDoctor = (index) => doctorPool[index % doctorPool.length];
+  const today = startOfDay(new Date());
+  const appointmentDate = (dayOffset) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + dayOffset);
+    return date.toISOString();
+  };
+
+  return [
+    {
+      _id: "dashboard-mock-001",
+      patientId: { name: "Alicia Perth", phone: "+62 813-456-7102" },
+      patientCode: "#PT-2035-001",
+      ...pickDoctor(0),
+      appointmentType: "Consultation",
+      date: appointmentDate(0),
+      slotTime: "08:30",
+      status: "completed",
+    },
+    {
+      _id: "dashboard-mock-002",
+      patientId: { name: "Bima Kurnia", phone: "+62 813-2256-8941" },
+      patientCode: "#PT-2035-024",
+      ...pickDoctor(1),
+      appointmentType: "Follow-up",
+      date: appointmentDate(0),
+      slotTime: "09:00",
+      status: "completed",
+    },
+    {
+      _id: "dashboard-mock-003",
+      patientId: { name: "Clara Wright", phone: "+62 811-6677-2043" },
+      patientCode: "#PT-2035-053",
+      ...pickDoctor(2),
+      appointmentType: "Consultation",
+      date: appointmentDate(0),
+      slotTime: "09:30",
+      status: "in_progress",
+    },
+    {
+      _id: "dashboard-mock-004",
+      patientId: { name: "Daniel Evans", phone: "+62 812-7711-9910" },
+      patientCode: "#PT-2035-088",
+      ...pickDoctor(3),
+      appointmentType: "Consultation",
+      date: appointmentDate(1),
+      slotTime: "10:00",
+      status: "booked",
+    },
+    {
+      _id: "dashboard-mock-005",
+      patientId: { name: "Emma Brooks", phone: "+62 812-9088-1112" },
+      patientCode: "#PT-2035-101",
+      ...pickDoctor(4),
+      appointmentType: "Telemedicine",
+      date: appointmentDate(2),
+      slotTime: "11:15",
+      status: "confirmed",
+    },
+    {
+      _id: "dashboard-mock-006",
+      patientId: { name: "Farhan Malik", phone: "+62 813-1045-5634" },
+      patientCode: "#PT-2035-132",
+      ...pickDoctor(1),
+      appointmentType: "Surgery",
+      date: appointmentDate(3),
+      slotTime: "13:00",
+      status: "cancelled",
+    },
+  ];
+};
+
+const buildCalendarDays = (dateValue = new Date()) => {
+  const current = new Date(dateValue);
+  const firstDay = new Date(current.getFullYear(), current.getMonth(), 1);
+  const lastDay = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+  const leadingSpaces = firstDay.getDay();
+  const totalSlots = Math.ceil((leadingSpaces + lastDay.getDate()) / 7) * 7;
+
+  return Array.from({ length: totalSlots }, (_, index) => {
+    const dayNumber = index - leadingSpaces + 1;
+    return dayNumber > 0 && dayNumber <= lastDay.getDate() ? dayNumber : "";
+  });
+};
+
 function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -14,7 +249,9 @@ function DashboardPage() {
     completed: 0,
     pending: 0,
     cancelled: 0,
-    noShow: 0
+    ongoing: 0,
+    totalDoctors: 0,
+    avgWaitTime: 0,
   });
   const [doctors, setDoctors] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -22,20 +259,14 @@ function DashboardPage() {
   const [patientAppointments, setPatientAppointments] = useState([]);
 
   useEffect(() => {
-    // Only redirect super_admin and doctor - they have dedicated dashboards
-    if (user?.role === 'super_admin') {
-      navigate('/super-admin');
-      return;
-    }
-    if (user?.role === 'doctor') {
-      navigate('/doctor/dashboard');
+    if (user?.role === "doctor") {
+      navigate("/doctor/dashboard");
       return;
     }
 
-    // For hospital_admin and patient, fetch appropriate data
-    if (user?.role === 'hospital_admin') {
+    if (user?.role === "hospital_admin") {
       fetchHospitalAdminData();
-    } else if (user?.role === 'patient') {
+    } else if (user?.role === "patient") {
       fetchPatientData();
     } else {
       setLoading(false);
@@ -53,59 +284,66 @@ function DashboardPage() {
 
       const [statsRes, doctorsRes, hospitalRes] = await Promise.all([
         api.get(`/hospitals/${hospitalId}/stats`),
-        api.get(`/hospitals/${hospitalId}/doctors`),
-        api.get(`/hospitals/${hospitalId}`)
+        api.get("/doctors", { params: { hospitalId } }),
+        api.get(`/hospitals/${hospitalId}`),
       ]);
 
-      if (statsRes.data.stats) {
-        const apptStats = statsRes.data.stats.appointments || {};
-        setStats({
-          totalAppointments: apptStats.total || 0,
-          completed: apptStats.completed || 0,
-          pending: (apptStats.booked || 0) + (apptStats.checked_in || 0),
-          cancelled: apptStats.cancelled || 0,
-          noShow: apptStats.no_show || 0,
-          totalDoctors: statsRes.data.stats.doctors || 0
-        });
-      }
+      const doctorsList = doctorsRes.data.doctors || [];
+      const hospital = hospitalRes.data.hospital || null;
 
-      if (doctorsRes.data.doctors) {
-        const doctorsWithStatus = doctorsRes.data.doctors.map(doc => ({
-          ...doc,
-          name: doc.userId?.name || 'Doctor',
-          status: doc.currentQueueStatus === 'active' ? 'Available' :
-                  doc.currentQueueStatus === 'paused' ? 'Busy' : 'Offline'
-        }));
-        setDoctors(doctorsWithStatus);
-      }
+      const doctorsWithStatus = doctorsList.map((doctor) => {
+        let status = "Offline";
 
-      if (hospitalRes.data.hospital) {
-        setHospitalInfo(hospitalRes.data.hospital);
-      }
-
-      // Fetch today's appointments
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const allAppointments = [];
-        for (const doc of doctorsRes.data.doctors?.slice(0, 5) || []) {
-          const apptRes = await api.get(`/doctors/${doc._id}/appointments`, {
-            params: { date: today }
-          });
-          if (apptRes.data.appointments) {
-            allAppointments.push(...apptRes.data.appointments.map(a => ({
-              ...a,
-              doctorName: doc.userId?.name,
-              doctorSpecialty: doc.specialty
-            })));
-          }
+        if (doctor.currentQueueStatus === "paused") {
+          status = "Busy";
+        } else if (doctor.currentQueueStatus === "active" || doctor.isAcceptingPatients !== false) {
+          status = "Available";
         }
-        setAppointments(allAppointments.slice(0, 10));
-      } catch (err) {
-        console.log('Could not fetch appointments');
+
+        return {
+          ...doctor,
+          name: doctor.userId?.name || "Doctor",
+          status,
+        };
+      });
+
+      const appointmentResponses = await Promise.all(
+        doctorsList.map((doctor) =>
+          api.get(`/doctors/${doctor._id}/appointments`).catch(() => ({ data: { appointments: [] } })),
+        ),
+      );
+
+      let hospitalAppointments = appointmentResponses
+        .flatMap((response, index) =>
+          (response.data.appointments || []).map((appointment) => ({
+            ...appointment,
+            doctorName: doctorsList[index]?.userId?.name || "Doctor",
+            doctorSpecialty: doctorsList[index]?.specialty || "",
+          })),
+        )
+        .sort(compareAppointmentsAsc);
+
+      if (!hospitalAppointments.length && user?.email === TEST_HOSPITAL_ADMIN_EMAIL) {
+        hospitalAppointments = buildMockDashboardAppointments(doctorsWithStatus).sort(compareAppointmentsAsc);
       }
 
+      const todayAppointments = hospitalAppointments.filter((appointment) => isSameDay(appointment.date, new Date()));
+      const todayStats = countAppointmentStats(todayAppointments);
+
+      setStats({
+        totalAppointments: todayStats.total,
+        completed: todayStats.completed,
+        pending: todayStats.scheduled + todayStats.ongoing,
+        cancelled: todayStats.cancelled,
+        ongoing: todayStats.ongoing,
+        totalDoctors: statsRes.data.stats?.doctors || doctorsWithStatus.length,
+        avgWaitTime: statsRes.data.stats?.avgWaitTime || hospital?.avgWaitTime || 0,
+      });
+      setDoctors(doctorsWithStatus);
+      setAppointments(hospitalAppointments);
+      setHospitalInfo(hospital);
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      console.error("Failed to fetch dashboard data:", error);
     } finally {
       setLoading(false);
     }
@@ -113,25 +351,12 @@ function DashboardPage() {
 
   const fetchPatientData = async () => {
     try {
-      // Fetch patient's appointments
-      const res = await api.get('/appointments/my');
-      setPatientAppointments(res.data.appointments || []);
+      const response = await api.get("/appointments/my");
+      setPatientAppointments(response.data.appointments || []);
     } catch (error) {
-      console.error('Failed to fetch patient data:', error);
+      console.error("Failed to fetch patient data:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getStatusClass = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'completed': return 'completed';
-      case 'booked':
-      case 'confirmed': return 'scheduled';
-      case 'checked_in': return 'ongoing';
-      case 'cancelled': return 'canceled';
-      case 'no_show': return 'canceled';
-      default: return 'scheduled';
     }
   };
 
@@ -146,25 +371,26 @@ function DashboardPage() {
     );
   }
 
-  // Patient Dashboard
-  if (user?.role === 'patient') {
-    const upcomingAppointments = patientAppointments.filter(a =>
-      a.status === 'booked' || a.status === 'confirmed' || a.status === 'checked_in'
+  if (user?.role === "patient") {
+    const upcomingAppointments = patientAppointments.filter(
+      (appointment) =>
+        appointment.status === "booked" ||
+        appointment.status === "confirmed" ||
+        appointment.status === "checked_in",
     );
-    const completedAppointments = patientAppointments.filter(a => a.status === 'completed');
+    const completedAppointments = patientAppointments.filter((appointment) => appointment.status === "completed");
 
     return (
-      <AppLayout title="Dashboard" subtitle={`Welcome back, ${user?.name || 'Patient'}`}>
+      <AppLayout title="Dashboard" subtitle={`Welcome back, ${user?.name || "Patient"}`}>
         <main className="patient-dashboard">
-          {/* Quick Stats */}
           <div className="patient-stats-grid">
             <div className="patient-stat-card">
               <div className="patient-stat-icon upcoming">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </div>
               <div className="patient-stat-info">
@@ -176,8 +402,8 @@ function DashboardPage() {
             <div className="patient-stat-card">
               <div className="patient-stat-icon completed">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-                  <polyline points="22,4 12,14.01 9,11.01"/>
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                  <polyline points="22,4 12,14.01 9,11.01" />
                 </svg>
               </div>
               <div className="patient-stat-info">
@@ -189,10 +415,10 @@ function DashboardPage() {
             <div className="patient-stat-card">
               <div className="patient-stat-icon total">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                  <polyline points="14,2 14,8 20,8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
                 </svg>
               </div>
               <div className="patient-stat-info">
@@ -202,14 +428,13 @@ function DashboardPage() {
             </div>
           </div>
 
-          {/* Quick Actions */}
           <div className="patient-actions-section">
             <h2>Quick Actions</h2>
             <div className="patient-actions-grid">
               <Link to="/chat" className="patient-action-card primary">
                 <div className="patient-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                   </svg>
                 </div>
                 <div className="patient-action-content">
@@ -217,18 +442,18 @@ function DashboardPage() {
                   <p>Chat with AI to describe symptoms and book with the right doctor</p>
                 </div>
                 <svg className="patient-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12,5 19,12 12,19"/>
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12,5 19,12 12,19" />
                 </svg>
               </Link>
 
               <Link to="/my-appointments" className="patient-action-card">
                 <div className="patient-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
                 </div>
                 <div className="patient-action-content">
@@ -236,35 +461,38 @@ function DashboardPage() {
                   <p>View and manage all your scheduled appointments</p>
                 </div>
                 <svg className="patient-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12,5 19,12 12,19"/>
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12,5 19,12 12,19" />
                 </svg>
               </Link>
             </div>
           </div>
 
-          {/* Upcoming Appointments */}
           <div className="patient-appointments-section">
             <div className="section-header">
               <h2>Upcoming Appointments</h2>
-              <Link to="/my-appointments" className="view-all-link">View All</Link>
+              <Link to="/my-appointments" className="view-all-link">
+                View All
+              </Link>
             </div>
 
             {upcomingAppointments.length > 0 ? (
               <div className="patient-appointments-list">
-                {upcomingAppointments.slice(0, 3).map(appt => (
-                  <div key={appt._id} className="patient-appointment-card">
+                {upcomingAppointments.slice(0, 3).map((appointment) => (
+                  <div key={appointment._id} className="patient-appointment-card">
                     <div className="appt-date-badge">
-                      <span className="appt-day">{new Date(appt.date).getDate()}</span>
-                      <span className="appt-month">{new Date(appt.date).toLocaleString('default', { month: 'short' })}</span>
+                      <span className="appt-day">{new Date(appointment.date).getDate()}</span>
+                      <span className="appt-month">
+                        {new Date(appointment.date).toLocaleString("default", { month: "short" })}
+                      </span>
                     </div>
                     <div className="appt-details">
-                      <h4>{appt.doctorId?.userId?.name || 'Doctor'}</h4>
-                      <p>{appt.doctorId?.specialty || 'Specialist'}</p>
-                      <span className="appt-time">{appt.slotTime}</span>
+                      <h4>{appointment.doctorId?.userId?.name || "Doctor"}</h4>
+                      <p>{appointment.doctorId?.specialty || "Specialist"}</p>
+                      <span className="appt-time">{appointment.slotTime}</span>
                     </div>
-                    <span className={`status-pill status-${getStatusClass(appt.status)}`}>
-                      {appt.status?.replace('_', ' ')}
+                    <span className={`status-pill status-${getStatusClass(appointment.status)}`}>
+                      {appointment.status?.replace("_", " ")}
                     </span>
                   </div>
                 ))}
@@ -272,10 +500,10 @@ function DashboardPage() {
             ) : (
               <div className="patient-empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
                 <h3>No Upcoming Appointments</h3>
                 <p>Book your first appointment with our AI assistant</p>
@@ -290,104 +518,333 @@ function DashboardPage() {
     );
   }
 
-  // Hospital Admin Dashboard
+  const now = new Date();
+  const todayAppointments = appointments.filter((appointment) => isSameDay(appointment.date, now));
+  const { start: weekStart, end: weekEnd } = getWeekBounds(now);
+  const weekAppointments = appointments.filter((appointment) => {
+    const appointmentDate = startOfDay(appointment.date);
+    return appointmentDate >= weekStart && appointmentDate < weekEnd;
+  });
+  const upcomingAppointments = appointments
+    .filter((appointment) => {
+      const appointmentDateTime = getAppointmentDateTime(appointment);
+      return appointmentDateTime >= now && !["completed", "cancelled", "no_show"].includes(appointment.status);
+    })
+    .sort(compareAppointmentsAsc);
+  const recentAppointments = [...appointments].sort(compareAppointmentsDesc);
+  const availableDoctors = doctors.filter((doctor) => doctor.status === "Available").length;
+  const busyDoctors = doctors.filter((doctor) => doctor.status === "Busy").length;
+  const offlineDoctors = doctors.length - availableDoctors - busyDoctors;
+  const dashboardTableRows = (todayAppointments.length ? todayAppointments : weekAppointments).slice(0, 6);
+  const appointmentsThisMonth = appointments.filter((appointment) => {
+    const appointmentDate = new Date(appointment.date);
+    return (
+      appointmentDate.getFullYear() === now.getFullYear() &&
+      appointmentDate.getMonth() === now.getMonth()
+    );
+  });
+
+  const weekSeries = Array.from({ length: 7 }, (_, index) => {
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + index);
+
+    const dailyAppointments = weekAppointments.filter((appointment) => isSameDay(appointment.date, dayDate));
+    const scheduled = dailyAppointments.filter((appointment) =>
+      ["booked", "confirmed"].includes(appointment.status),
+    ).length;
+    const inCare = dailyAppointments.filter((appointment) =>
+      ["checked_in", "in_progress", "in_consultation", "completed"].includes(appointment.status),
+    ).length;
+
+    return {
+      day: dayDate.toLocaleDateString("en-US", { weekday: "short" }),
+      scheduled,
+      inCare,
+      total: dailyAppointments.length,
+    };
+  });
+
+  const maxSeriesValue = Math.max(...weekSeries.map((item) => item.total), 0);
+  const getBarHeight = (value) => {
+    if (maxSeriesValue === 0) {
+      return 22;
+    }
+
+    return value > 0 ? Math.max(22, Math.round((value / maxSeriesValue) * 170)) : 12;
+  };
+
+  const departmentMap = doctors.reduce((collection, doctor) => {
+    const specialty = doctor.specialty || "General Medicine";
+
+    if (!collection.has(specialty)) {
+      collection.set(specialty, { name: specialty, count: 0 });
+    }
+
+    collection.get(specialty).count += 1;
+    return collection;
+  }, new Map());
+
+  if (hospitalInfo?.specialties?.length) {
+    hospitalInfo.specialties.forEach((specialty) => {
+      if (!departmentMap.has(specialty)) {
+        departmentMap.set(specialty, { name: specialty, count: 0 });
+      }
+    });
+  }
+
+  const departmentItems = [...departmentMap.values()]
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, 6)
+    .map((department, index) => ({
+      ...department,
+      tone: DEPARTMENT_BULLET_TONES[index % DEPARTMENT_BULLET_TONES.length],
+    }));
+
+  const reportItems = [
+    {
+      title: hospitalInfo?.type ? `${hospitalInfo.type} hospital workspace is active` : "Hospital workspace is active",
+      note: hospitalInfo?.email || "Administration",
+    },
+    {
+      title: `${departmentMap.size} departments are configured`,
+      note: `${availableDoctors} doctors available for booking`,
+    },
+    {
+      title: stats.avgWaitTime ? `Average wait time is ${stats.avgWaitTime} min` : "Average wait time is not configured",
+      note: `${stats.pending} appointments are pending today`,
+    },
+  ];
+
+  const activityItems = recentAppointments.slice(0, 4).map((appointment) => {
+    let tone = "teal";
+
+    if (appointment.status === "completed") {
+      tone = "green";
+    } else if (["cancelled", "no_show"].includes(appointment.status)) {
+      tone = "amber";
+    } else if (["checked_in", "in_progress", "in_consultation"].includes(appointment.status)) {
+      tone = "blue";
+    }
+
+    return {
+      tone,
+      title: `${formatAppointmentStatus(appointment.status)} appointment`,
+      time: `${appointment.patientId?.name || "Patient"} with ${appointment.doctorName || "Doctor"} • ${getAppointmentDateTime(
+        appointment,
+      ).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })}, ${appointment.slotTime || "--"}`,
+    };
+  });
+
+  const calendarMonthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const calendarDays = buildCalendarDays(now);
+  const firstName = user?.name?.split(" ")[0] || "James";
+
   const statCards = [
     {
       label: "Today's Appointments",
-      value: stats.totalAppointments.toString(),
+      value: String(stats.totalAppointments),
       delta: `${stats.completed} completed`,
       icon: "AP",
     },
     {
       label: "Total Doctors",
-      value: stats.totalDoctors?.toString() || doctors.length.toString(),
-      delta: `${doctors.filter(d => d.status === 'Available').length} available`,
+      value: String(stats.totalDoctors || doctors.length),
+      delta: `${availableDoctors} available`,
       icon: "DR",
     },
     {
       label: "Pending",
-      value: stats.pending.toString(),
-      delta: "Awaiting consultation",
+      value: String(stats.pending),
+      delta: stats.ongoing > 0 ? `${stats.ongoing} in consultation` : "Awaiting consultation",
       icon: "PN",
     },
   ];
 
   return (
-    <AppLayout
-      title="Dashboard"
-      subtitle={`Welcome ${user?.name || 'Admin'}, ${hospitalInfo?.name || 'MedQueue AI'}`}
-    >
+    <AppLayout title="Dashboard" subtitle={`Hello ${firstName}, welcome back!`}>
       <main className="dashboard-content">
-        <section className="dashboard-grid">
-          {/* Stats Cards */}
+        <section className="dashboard-grid dashboard-grid--hospital">
           <section className="metric-grid dashboard-section dashboard-section--metrics" aria-label="Overview statistics">
             {statCards.map((card) => (
               <MetricCard key={card.label} {...card} />
             ))}
           </section>
 
-          {/* Quick Actions */}
-          <section className="panel dashboard-section dashboard-section--actions">
-            <div className="panel-header panel-header--tight">
-              <h2>Quick Actions</h2>
+          <section className="panel panel-chart dashboard-section dashboard-section--chart">
+            <div className="panel-header">
+              <div>
+                <h2>Appointments by Day</h2>
+                <p>This week appointments</p>
+                <strong className="panel-kpi">{weekAppointments.length}</strong>
+              </div>
+              <button type="button">This Week</button>
             </div>
-            <div className="quick-actions">
-              <button className="action-btn" onClick={() => navigate('/doctors/add')}>
-                + Add Doctor
-              </button>
-              <button className="action-btn" onClick={() => navigate('/doctors')}>
-                View Doctors
-              </button>
-              <button className="action-btn" onClick={() => navigate('/appointments')}>
-                Appointments
-              </button>
+
+            <div className="chart-legend">
+              <span>
+                <i className="legend-dot legend-dot--soft" />
+                Scheduled
+              </span>
+              <span>
+                <i className="legend-dot legend-dot--teal" />
+                In Care
+              </span>
+              <span>
+                <i className="legend-dot legend-dot--dark" />
+                Total
+              </span>
+            </div>
+
+            <div className="bar-chart" aria-hidden="true">
+              {weekSeries.map((item) => (
+                <div className="bar-column" key={item.day}>
+                  <div className="bar-group">
+                    <span style={{ height: `${getBarHeight(item.scheduled)}px` }} />
+                    <span className="is-mid" style={{ height: `${getBarHeight(item.inCare)}px` }} />
+                    <span className="is-dark" style={{ height: `${getBarHeight(item.total)}px` }} />
+                  </div>
+                  <small>{item.day}</small>
+                </div>
+              ))}
             </div>
           </section>
 
-          {/* Appointments Table */}
+          <section className="panel panel-donut dashboard-section dashboard-section--departments">
+            <div className="panel-header panel-header--tight">
+              <div>
+                <h2>Doctors by Departments</h2>
+              </div>
+            </div>
+
+            <div className="donut-wrap">
+              <div className="donut-chart">
+                <div>
+                  <strong>{departmentMap.size}</strong>
+                  <span>Departments</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="department-list">
+              {departmentItems.length > 0 ? (
+                departmentItems.map((item) => (
+                  <div className="department-item" key={item.name}>
+                    <span className={`department-bullet department-bullet--${item.tone}`} />
+                    <div>
+                      <strong>{item.name}</strong>
+                      <p>{item.count} Doctors</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="empty-text">No departments configured</p>
+              )}
+            </div>
+          </section>
+
+          <section className="panel panel-revenue dashboard-section dashboard-section--revenue">
+            <div className="panel-header">
+              <div>
+                <h2>Hospital Flow</h2>
+              </div>
+              <button type="button">Today</button>
+            </div>
+
+            <div className="mini-legend">
+              <span>
+                <i className="legend-dot legend-dot--teal" />
+                Completed
+              </span>
+              <span>
+                <i className="legend-dot legend-dot--dark" />
+                Pending
+              </span>
+            </div>
+
+            <div className="line-chart" aria-hidden="true">
+              <div className="line-chart__grid" />
+              <div className="line-chart__area" />
+              <div className="line-chart__line line-chart__line--soft" />
+              <div className="line-chart__line line-chart__line--strong" />
+            </div>
+          </section>
+
+          <section className="panel panel-reports dashboard-section dashboard-section--reports">
+            <div className="panel-header panel-header--tight">
+              <div>
+                <h2>Reports</h2>
+              </div>
+            </div>
+
+            <ul className="report-list">
+              {reportItems.map((item, index) => (
+                <li key={item.title}>
+                  <span className={`report-mark report-mark--${index % 3}`} />
+                  <div>
+                    <p>{item.title}</p>
+                    <small>{item.note}</small>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
           <section className="panel panel-table dashboard-section dashboard-section--table">
             <div className="panel-header">
               <div>
-                <h2>Today's Appointments</h2>
+                <h2>Patient Appointment</h2>
               </div>
-              <button type="button" onClick={() => navigate('/appointments')}>View All</button>
+              <button type="button" onClick={() => navigate("/appointments")}>
+                This Week
+              </button>
             </div>
 
             <div className="table-wrap">
-              {appointments.length > 0 ? (
+              {dashboardTableRows.length > 0 ? (
                 <table>
                   <thead>
                     <tr>
-                      <th>Patient</th>
-                      <th>Doctor / Specialty</th>
-                      <th>Time</th>
+                      <th>Name</th>
+                      <th>Doctor / Speciality</th>
+                      <th>Appointment Type</th>
+                      <th>Date &amp; Time</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {appointments.map((appt) => (
-                      <tr key={appt._id}>
+                    {dashboardTableRows.map((appointment) => (
+                      <tr key={appointment._id}>
                         <td>
                           <div className="table-person">
                             <span className="table-avatar">
-                              {(appt.patientId?.name || 'P').split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                              {getInitials(appointment.patientId?.name || "Patient")}
                             </span>
                             <div>
-                              <strong>{appt.patientId?.name || 'Patient'}</strong>
-                              <p>{appt.patientId?.phone || ''}</p>
+                              <strong>{appointment.patientId?.name || "Patient"}</strong>
+                              <p>{appointment.patientCode || appointment.patientId?.phone || "--"}</p>
                             </div>
                           </div>
                         </td>
                         <td>
                           <div className="table-meta">
-                            <strong>{appt.doctorName || 'Doctor'}</strong>
-                            <p>{appt.doctorSpecialty || ''}</p>
+                            <strong>{appointment.doctorName || "Doctor"}</strong>
+                            <p>{appointment.doctorSpecialty || "--"}</p>
                           </div>
                         </td>
-                        <td>{appt.slotTime || '--'}</td>
+                        <td>{formatAppointmentType(appointment)}</td>
                         <td>
-                          <span className={`status-pill status-${getStatusClass(appt.status)}`}>
-                            {appt.status?.replace('_', ' ') || 'Booked'}
+                          {getAppointmentDateTime(appointment).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}{" "}
+                          {appointment.slotTime || "--"}
+                        </td>
+                        <td>
+                          <span className={`status-pill status-${getStatusClass(appointment.status)}`}>
+                            {formatAppointmentStatus(appointment.status)}
                           </span>
                         </td>
                       </tr>
@@ -396,76 +853,133 @@ function DashboardPage() {
                 </table>
               ) : (
                 <div className="empty-state">
-                  <p>No appointments for today</p>
+                  <p>No appointments available yet</p>
                 </div>
               )}
             </div>
           </section>
 
-          {/* Doctors Schedule */}
+          <section className="panel panel-calendar dashboard-section dashboard-section--calendar">
+            <div className="panel-header panel-header--tight">
+              <div>
+                <h2>{calendarMonthLabel}</h2>
+              </div>
+              <button type="button">{appointmentsThisMonth.length}</button>
+            </div>
+
+            <div className="calendar-grid" aria-hidden="true">
+              {CALENDAR_DAY_LABELS.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+              {calendarDays.map((dayNumber, index) => (
+                <span
+                  className={dayNumber === now.getDate() ? "is-selected" : ""}
+                  key={`${dayNumber || "empty"}-${index}`}
+                >
+                  {dayNumber}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel dashboard-section dashboard-section--agenda">
+            <div className="panel-header panel-header--tight">
+              <div>
+                <h2>Agenda</h2>
+              </div>
+            </div>
+
+            <div className="stack-list">
+              {upcomingAppointments.length > 0 ? (
+                upcomingAppointments.slice(0, 4).map((appointment) => {
+                  const appointmentDateTime = getAppointmentDateTime(appointment);
+
+                  return (
+                    <article className="agenda-card" key={appointment._id}>
+                      <strong>
+                        {appointmentDateTime.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2)}
+                      </strong>
+                      <div>
+                        <p>{appointment.patientId?.name || "Patient"}</p>
+                        <span>
+                          {appointment.doctorName || "Doctor"} • {appointment.slotTime || "--"}
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="empty-text">No upcoming agenda items</p>
+              )}
+            </div>
+          </section>
+
           <section className="panel dashboard-section dashboard-section--doctors">
             <div className="panel-header panel-header--tight">
               <div>
-                <h2>Doctors' Status</h2>
+                <h2>Doctors&apos; Schedule</h2>
               </div>
             </div>
+
             <div className="doctor-stats">
               <div>
                 <strong>{doctors.length}</strong>
-                <span>All Doctors</span>
+                <span>All Doctor</span>
               </div>
               <div>
-                <strong>{doctors.filter(d => d.status === 'Available').length}</strong>
+                <strong>{availableDoctors}</strong>
                 <span>Available</span>
               </div>
               <div>
-                <strong>{doctors.filter(d => d.status !== 'Available').length}</strong>
-                <span>Offline</span>
+                <strong>{busyDoctors || offlineDoctors}</strong>
+                <span>{busyDoctors ? "Busy" : "Offline"}</span>
               </div>
             </div>
+
             <div className="doctor-list">
-              {doctors.slice(0, 5).map((doctor) => (
-                <article className="doctor-row" key={doctor._id}>
-                  <div className="avatar avatar--small">
-                    {(doctor.name || 'DR')
-                      .split(" ")
-                      .map((part) => part[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                  <div>
-                    <p>{doctor.name}</p>
-                    <span>{doctor.specialty}</span>
-                  </div>
-                  <span className={`status-pill status-${doctor.status?.toLowerCase()}`}>
-                    {doctor.status}
-                  </span>
-                </article>
-              ))}
-              {doctors.length === 0 && (
+              {doctors.length > 0 ? (
+                doctors.slice(0, 5).map((doctor) => (
+                  <article className="doctor-row" key={doctor._id}>
+                    <div className="avatar avatar--small">{getInitials(doctor.name)}</div>
+                    <div>
+                      <p>{doctor.name}</p>
+                      <span>{doctor.specialty || "General Medicine"}</span>
+                    </div>
+                    <span className={`status-pill status-${getStatusClass(doctor.status)}`}>{doctor.status}</span>
+                  </article>
+                ))
+              ) : (
                 <p className="empty-text">No doctors added yet</p>
               )}
             </div>
           </section>
 
-          {/* Hospital Info */}
-          <section className="panel dashboard-section dashboard-section--info">
+          <section className="panel dashboard-section dashboard-section--activity">
             <div className="panel-header panel-header--tight">
-              <h2>Hospital Info</h2>
+              <h2>Recent Activity</h2>
             </div>
-            {hospitalInfo ? (
-              <div className="hospital-info">
-                <p><strong>Name:</strong> {hospitalInfo.name}</p>
-                <p><strong>Type:</strong> {hospitalInfo.type}</p>
-                <p><strong>Phone:</strong> {hospitalInfo.phone}</p>
-                <p><strong>Email:</strong> {hospitalInfo.email}</p>
-                {hospitalInfo.address && (
-                  <p><strong>Address:</strong> {hospitalInfo.address.city}, {hospitalInfo.address.state}</p>
-                )}
-              </div>
-            ) : (
-              <p>Hospital information not available</p>
-            )}
+
+            <ul className="activity-list">
+              {activityItems.length > 0 ? (
+                activityItems.map((item) => (
+                  <li key={`${item.title}-${item.time}`}>
+                    <span className={`activity-icon activity-icon--${item.tone}`} />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>{item.time}</p>
+                    </div>
+                  </li>
+                ))
+              ) : (
+                <li>
+                  <span className="activity-icon activity-icon--teal" />
+                  <div>
+                    <strong>No recent activity</strong>
+                    <p>Activity will appear after appointments are created</p>
+                  </div>
+                </li>
+              )}
+            </ul>
           </section>
         </section>
       </main>

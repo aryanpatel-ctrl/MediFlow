@@ -3,16 +3,8 @@ import toast from "react-hot-toast";
 import { useAuth } from "../hooks";
 
 // Navigation items by role
+// Roles: hospital_admin, doctor, patient
 const getNavigationItems = (role) => {
-  if (role === 'super_admin') {
-    return [
-      { label: "Dashboard", shortLabel: "DB", path: "/super-admin" },
-      { label: "Hospitals", shortLabel: "HP", path: "/super-admin/hospitals" },
-      { label: "Add Hospital", shortLabel: "AH", path: "/super-admin/onboard" },
-      { label: "Analytics", shortLabel: "AN", path: "/super-admin/analytics" },
-    ];
-  }
-
   if (role === 'hospital_admin') {
     return [
       { label: "Dashboard", shortLabel: "DB", path: "/" },
@@ -30,16 +22,10 @@ const getNavigationItems = (role) => {
     ];
   }
 
-  if (role === 'patient') {
-    return [
-      { label: "Book Appointment", shortLabel: "AI", path: "/chat" },
-      { label: "My Appointments", shortLabel: "MA", path: "/my-appointments" },
-    ];
-  }
-
-  // Default for unknown roles
+  // Default: patient role (all signups are patients)
   return [
-    { label: "Dashboard", shortLabel: "DB", path: "/" },
+    { label: "Book Appointment", shortLabel: "AI", path: "/chat" },
+    { label: "My Appointments", shortLabel: "MA", path: "/my-appointments" },
   ];
 };
 
@@ -80,17 +66,6 @@ function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      {/* Super Admin Info */}
-      {user?.role === 'super_admin' && (
-        <div className="sidebar-upgrade">
-          <div className="upgrade-illustration">
-            <span>SA</span>
-          </div>
-          <h3>Super Admin</h3>
-          <p>Manage hospitals and their administrators.</p>
-        </div>
-      )}
 
       {/* AI Triage Card - Show for patients */}
       {user?.role === 'patient' && (

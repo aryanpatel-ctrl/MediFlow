@@ -18,10 +18,9 @@ export default function MainLayout() {
   const getDashboardLink = () => {
     if (!user) return '/login';
     switch (user.role) {
-      case 'patient': return '/patient';
-      case 'doctor': return '/doctor';
-      case 'hospital_admin':
-      case 'super_admin': return '/admin';
+      case 'patient': return '/';
+      case 'doctor': return '/doctor/dashboard';
+      case 'hospital_admin': return '/';
       default: return '/';
     }
   };

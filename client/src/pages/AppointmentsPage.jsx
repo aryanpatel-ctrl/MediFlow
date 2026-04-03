@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
+import AddAppointmentModal from "../components/AddAppointmentModal";
+import CancelAppointmentModal from "../components/CancelAppointmentModal";
+import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal";
 
 const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@medqueue.ai";
 const APPOINTMENT_TYPES = ["Consultation", "Follow-up", "Surgery", "Telemedicine"];
@@ -248,22 +252,29 @@ const buildTypeBars = (typeSummary) => {
 
 function AppointmentsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState("week");
+  const [dateFilter, setDateFilter] = useState("upcoming");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   useEffect(() => {
-    fetchAppointments();
+    fetchAppointments(true); // Show loading only on initial load
   }, [user]);
 
-  const fetchAppointments = async () => {
-    setLoading(true);
+  const fetchAppointments = async (showLoading = false) => {
+    if (showLoading) {
+      setLoading(true);
+    }
 
     try {
       const hospitalId = user?.hospitalId?._id || user?.hospitalId;
 
       if (!hospitalId) {
-        setLoading(false);
+        if (showLoading) setLoading(false);
         return;
       }
 
@@ -304,39 +315,86 @@ function AppointmentsPage() {
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   const today = startOfDay(new Date());
   const { start: weekStart, end: weekEnd } = getWeekBounds(today);
 
+  // Calculate month bounds
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
   const todayAppointments = appointments.filter((appointment) => isSameDay(appointment.date, today));
   const weeklyAppointments = appointments.filter((appointment) => isWithinWeek(appointment.date, weekStart, weekEnd));
-  const tableAppointments = dateFilter === "today" ? todayAppointments : weeklyAppointments;
-
-  const todayStats = countAppointmentStats(todayAppointments);
-  const weeklyStats = countAppointmentStats(weeklyAppointments);
-
-  const weeklyTrendDays = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(weekStart);
-    date.setDate(weekStart.getDate() + index);
-    const count = weeklyAppointments.filter((appointment) => isSameDay(appointment.date, date)).length;
-
-    return {
-      day: date.toLocaleDateString("en-US", { weekday: "short" }),
-      label: date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" }),
-      count,
-      date,
-    };
+  const monthlyAppointments = appointments.filter((appointment) => {
+    const aptDate = new Date(appointment.date);
+    return aptDate >= monthStart && aptDate <= monthEnd;
   });
+  const upcomingAppointments = appointments.filter((appointment) => new Date(appointment.date) >= today);
 
-  const maxTrendCount = Math.max(...weeklyTrendDays.map((item) => item.count), 1);
-  const highlightedTrendIndex = weeklyTrendDays.findIndex((item) => item.count === maxTrendCount && item.count > 0);
+  // Get filtered appointments based on global filter
+  const getFilteredAppointments = () => {
+    switch (dateFilter) {
+      case "today":
+        return todayAppointments;
+      case "week":
+        return weeklyAppointments;
+      case "month":
+        return monthlyAppointments;
+      case "upcoming":
+        return upcomingAppointments;
+      case "all":
+        return appointments;
+      default:
+        return upcomingAppointments;
+    }
+  };
+  const filteredAppointments = getFilteredAppointments();
+
+  // Stats based on filtered data
+  const filteredStats = countAppointmentStats(filteredAppointments);
+
+  // Build trend data based on filter
+  const buildTrendData = () => {
+    if (dateFilter === "today") {
+      // For today, show hourly breakdown
+      const hours = Array.from({ length: 10 }, (_, i) => i + 8); // 8 AM to 5 PM
+      return hours.map((hour) => {
+        const count = filteredAppointments.filter((apt) => {
+          const slotHour = parseInt(apt.slotTime?.split(":")[0] || "0");
+          return slotHour === hour;
+        }).length;
+        return {
+          day: `${hour}:00`,
+          label: `${hour}:00`,
+          count,
+        };
+      });
+    } else {
+      // For other filters, show daily breakdown (last 7 days of data)
+      return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(weekStart);
+        date.setDate(weekStart.getDate() + index);
+        const count = filteredAppointments.filter((appointment) => isSameDay(appointment.date, date)).length;
+        return {
+          day: date.toLocaleDateString("en-US", { weekday: "short" }),
+          label: date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" }),
+          count,
+          date,
+        };
+      });
+    }
+  };
+
+  const trendData = buildTrendData();
+  const maxTrendCount = Math.max(...trendData.map((item) => item.count), 1);
+  const highlightedTrendIndex = trendData.findIndex((item) => item.count === maxTrendCount && item.count > 0);
 
   const typeSummary = APPOINTMENT_TYPES.map((label) => {
-    const count = weeklyAppointments.filter((appointment) => appointment.appointmentType === label).length;
-    const percent = weeklyStats.total > 0 ? Math.round((count / weeklyStats.total) * 100) : 0;
+    const count = filteredAppointments.filter((appointment) => appointment.appointmentType === label).length;
+    const percent = filteredStats.total > 0 ? Math.round((count / filteredStats.total) * 100) : 0;
 
     return {
       label,
@@ -348,36 +406,48 @@ function AppointmentsPage() {
 
   const typeBars = buildTypeBars(typeSummary);
 
+  // Get filter label for display
+  const getFilterLabel = () => {
+    switch (dateFilter) {
+      case "today": return "Today";
+      case "week": return "This Week";
+      case "month": return "This Month";
+      case "upcoming": return "All Upcoming";
+      case "all": return "All Time";
+      default: return "All Upcoming";
+    }
+  };
+
   const overviewCards = [
     {
-      label: "Today's Appointments",
-      value: String(todayStats.total),
-      delta: `${todayStats.total > 0 ? `+${((todayStats.booked / todayStats.total) * 100).toFixed(2)}%` : "0%"}`,
-      note: `The available booking count is ${todayStats.booked}`,
+      label: "Total Appointments",
+      value: String(filteredStats.total),
+      delta: filteredStats.total > 0 ? `${filteredStats.booked} pending` : "0",
+      note: `Showing ${getFilterLabel().toLowerCase()}`,
       icon: "TA",
       tone: "teal",
     },
     {
       label: "Completed",
-      value: String(todayStats.completed),
-      delta: `${todayStats.total > 0 ? `+${((todayStats.completed / todayStats.total) * 100).toFixed(1)}%` : "0%"}`,
-      note: `The incomplete appointments are ${Math.max(todayStats.total - todayStats.completed, 0)}`,
+      value: String(filteredStats.completed),
+      delta: `${filteredStats.total > 0 ? `${((filteredStats.completed / filteredStats.total) * 100).toFixed(0)}%` : "0%"}`,
+      note: `${Math.max(filteredStats.total - filteredStats.completed, 0)} remaining`,
       icon: "CP",
       tone: "green",
     },
     {
       label: "Ongoing",
-      value: String(todayStats.ongoing),
-      delta: `${todayStats.total > 0 ? `-${((todayStats.ongoing / todayStats.total) * 100).toFixed(2)}%` : "0%"}`,
-      note: `The active consultations are ${todayStats.ongoing}`,
+      value: String(filteredStats.ongoing),
+      delta: filteredStats.ongoing > 0 ? "In progress" : "None",
+      note: `Active consultations`,
       icon: "OG",
       tone: "teal",
     },
     {
       label: "Canceled",
-      value: String(todayStats.cancelled),
-      delta: `${todayStats.total > 0 ? `+${((todayStats.cancelled / todayStats.total) * 100).toFixed(1)}%` : "0%"}`,
-      note: `The cancelled appointments are ${todayStats.cancelled}`,
+      value: String(filteredStats.cancelled),
+      delta: `${filteredStats.total > 0 ? `${((filteredStats.cancelled / filteredStats.total) * 100).toFixed(0)}%` : "0%"}`,
+      note: `Includes no-shows`,
       icon: "CN",
       tone: "rose",
     },
@@ -394,9 +464,105 @@ function AppointmentsPage() {
     );
   }
 
+  const handleAppointmentAdded = (newAppointment) => {
+    if (newAppointment) {
+      // Optimistic update - add new appointment to state directly
+      const formattedAppointment = {
+        ...newAppointment,
+        doctorName: newAppointment.doctorId?.userId?.name || newAppointment.doctorName || "Doctor",
+        doctorSpecialty: newAppointment.doctorId?.specialty || newAppointment.doctorSpecialty || "",
+        appointmentType: formatAppointmentType(newAppointment),
+        notes: formatAppointmentNotes(newAppointment),
+        patientCode: `#PT-${String(newAppointment._id?.slice(-6) || "000000").toUpperCase()}`,
+      };
+
+      setAppointments(prev => {
+        const updated = [...prev, formattedAppointment];
+        // Sort by date and time
+        updated.sort((left, right) => {
+          const dateDiff = new Date(left.date) - new Date(right.date);
+          if (dateDiff !== 0) return dateDiff;
+          return (left.slotTime || "").localeCompare(right.slotTime || "");
+        });
+        return updated;
+      });
+    }
+    // Also refresh in background to ensure data consistency
+    fetchAppointments(false);
+  };
+
+  const handleCancelClick = (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowCancelModal(true);
+  };
+
+  const handleRescheduleClick = (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowRescheduleModal(true);
+  };
+
+  const handleCancelSuccess = () => {
+    // Optimistic update - mark appointment as cancelled in state
+    if (selectedAppointment) {
+      setAppointments(prev =>
+        prev.map(apt =>
+          apt._id === selectedAppointment._id
+            ? { ...apt, status: "cancelled" }
+            : apt
+        )
+      );
+    }
+    // Refresh in background
+    fetchAppointments(false);
+  };
+
+  const handleRescheduleSuccess = () => {
+    // Optimistic update - mark old appointment as rescheduled
+    if (selectedAppointment) {
+      setAppointments(prev =>
+        prev.map(apt =>
+          apt._id === selectedAppointment._id
+            ? { ...apt, status: "rescheduled" }
+            : apt
+        )
+      );
+    }
+    // Refresh in background to get the new appointment
+    fetchAppointments(false);
+  };
+
+  // Check if appointment can be cancelled/rescheduled
+  const canModifyAppointment = (appointment) => {
+    const status = appointment.status?.toLowerCase();
+    return !["completed", "cancelled", "no_show", "rescheduled"].includes(status);
+  };
+
   return (
-    <AppLayout title="Appointments" subtitle="Manage today's clinical schedules">
+    <AppLayout title="Appointments" subtitle="Manage clinical schedules">
       <main className="appointments-page">
+        {/* Page Header with Filter and Add Button */}
+        <div className="page-actions">
+          <div className="page-filter">
+            <label>Show:</label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="global-filter-select"
+            >
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="upcoming">All Upcoming</option>
+              <option value="all">All Appointments</option>
+            </select>
+          </div>
+          <button
+            className="btn-add-appointment"
+            onClick={() => setShowAddModal(true)}
+          >
+            <span>+</span> Add Appointment
+          </button>
+        </div>
         <section className="appointments-overview" aria-label="Appointment overview">
           {overviewCards.map((card) => (
             <article className={`appointment-card appointment-card--${card.tone}`} key={card.label}>
@@ -425,15 +591,13 @@ function AppointmentsPage() {
             <div className="panel-header">
               <div>
                 <h2>Appointment Trends</h2>
-                <p>Total Appointments</p>
+                <p>{getFilterLabel()}</p>
               </div>
-              <button className="doctor-action primary" type="button">
-                This Week
-              </button>
+              <span className="trend-badge">{filteredStats.total} Total</span>
             </div>
 
             <div className="appointment-trends-summary">
-              <strong className="appointment-trends-total">{weeklyStats.total}</strong>
+              <strong className="appointment-trends-total">{filteredStats.total}</strong>
             </div>
 
             <div className="appointment-trends-chart">
@@ -443,7 +607,7 @@ function AppointmentsPage() {
                 ))}
               </div>
 
-              {weeklyTrendDays.map((item, index) => (
+              {trendData.map((item, index) => (
                 <div className="appointment-trends-bar" key={item.label}>
                   {index === (highlightedTrendIndex >= 0 ? highlightedTrendIndex : 0) && item.count > 0 ? (
                     <div className="appointment-tooltip">
@@ -491,19 +655,12 @@ function AppointmentsPage() {
           <div className="appointment-table-header">
             <div>
               <h2>Appointments</h2>
+              <p>{filteredAppointments.length} appointments - {getFilterLabel()}</p>
             </div>
-            <select
-              value={dateFilter}
-              onChange={(event) => setDateFilter(event.target.value)}
-              className="appointment-table-filter"
-            >
-              <option value="week">This Week</option>
-              <option value="today">Today</option>
-            </select>
           </div>
 
           <div className="table-wrap">
-            {tableAppointments.length > 0 ? (
+            {filteredAppointments.length > 0 ? (
               <table className="appointment-table">
                 <thead>
                   <tr>
@@ -515,21 +672,31 @@ function AppointmentsPage() {
                     <th>Notes</th>
                     <th>Date</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tableAppointments.map((appointment) => (
+                  {filteredAppointments.map((appointment) => (
                     <tr key={appointment._id}>
                       <td>
                         <span className="table-check" aria-hidden="true" />
                       </td>
                       <td>
-                        <div className="table-person">
+                        <div
+                          className="table-person table-person-clickable"
+                          onClick={() => {
+                            const patientId = appointment.patientId?._id || appointment.patientId;
+                            if (patientId) {
+                              navigate(`/patients/${patientId}`);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        >
                           <span className="table-avatar">
                             {(appointment.patientId?.name || "P").split(" ").map((part) => part[0]).join("").slice(0, 2)}
                           </span>
                           <div>
-                            <strong>{appointment.patientId?.name || "Patient"}</strong>
+                            <strong style={{ color: "#0d9488" }}>{appointment.patientId?.name || "Patient"}</strong>
                             <p>{appointment.patientCode || "#PT-000000"}</p>
                           </div>
                         </div>
@@ -558,17 +725,76 @@ function AppointmentsPage() {
                           {formatAppointmentStatus(appointment.status)}
                         </span>
                       </td>
+                      <td>
+                        {canModifyAppointment(appointment) ? (
+                          <div className="action-buttons">
+                            <button
+                              className="btn-action btn-action-reschedule"
+                              onClick={() => handleRescheduleClick(appointment)}
+                              title="Reschedule"
+                            >
+                              Reschedule
+                            </button>
+                            <button
+                              className="btn-action btn-action-cancel"
+                              onClick={() => handleCancelClick(appointment)}
+                              title="Cancel"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="action-disabled">--</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
               <div className="empty-state">
-                <p>No appointments found for {dateFilter === "today" ? "today" : "this week"}</p>
+                <p>No appointments found for {getFilterLabel().toLowerCase()}</p>
+                <button
+                  className="btn-add-appointment"
+                  onClick={() => setShowAddModal(true)}
+                  style={{ marginTop: '1rem' }}
+                >
+                  <span>+</span> Add Appointment
+                </button>
               </div>
             )}
           </div>
         </section>
+
+        {/* Add Appointment Modal */}
+        <AddAppointmentModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={handleAppointmentAdded}
+          hospitalId={user?.hospitalId?._id || user?.hospitalId}
+        />
+
+        {/* Cancel Appointment Modal */}
+        <CancelAppointmentModal
+          isOpen={showCancelModal}
+          onClose={() => {
+            setShowCancelModal(false);
+            setSelectedAppointment(null);
+          }}
+          onSuccess={handleCancelSuccess}
+          appointment={selectedAppointment}
+        />
+
+        {/* Reschedule Appointment Modal */}
+        <RescheduleAppointmentModal
+          isOpen={showRescheduleModal}
+          onClose={() => {
+            setShowRescheduleModal(false);
+            setSelectedAppointment(null);
+          }}
+          onSuccess={handleRescheduleSuccess}
+          appointment={selectedAppointment}
+        />
       </main>
     </AppLayout>
   );

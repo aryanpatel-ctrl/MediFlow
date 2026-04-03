@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks";
 
-// Medlink Pages
+// Pages
 import AppointmentsPage from "./pages/AppointmentsPage";
 import DashboardPage from "./pages/DashboardPage";
 import PatientsPage from "./pages/PatientsPage";
@@ -17,15 +17,9 @@ import MessagesPage from "./pages/MessagesPage";
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
-import HospitalOnboarding from "./pages/HospitalOnboarding";
 import DoctorOnboarding from "./pages/DoctorOnboarding";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import HospitalsListPage from "./pages/HospitalsListPage";
-import HospitalOnboardingPage from "./pages/HospitalOnboardingPage";
-import HospitalDetailPage from "./pages/HospitalDetailPage";
-import SuperAdminAnalyticsPage from "./pages/SuperAdminAnalyticsPage";
 import HospitalSettings from "./pages/HospitalSettings";
 
 // Protected Route Component
@@ -60,49 +54,8 @@ function App() {
       {/* Auth Routes */}
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/hospital/register" element={<HospitalOnboarding />} />
 
-      {/* Protected Dashboard Routes */}
-      <Route
-        path="/super-admin"
-        element={
-          <ProtectedRoute>
-            <SuperAdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/super-admin/hospitals"
-        element={
-          <ProtectedRoute>
-            <HospitalsListPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/super-admin/hospitals/:id"
-        element={
-          <ProtectedRoute>
-            <HospitalDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/super-admin/onboard"
-        element={
-          <ProtectedRoute>
-            <HospitalOnboardingPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/super-admin/analytics"
-        element={
-          <ProtectedRoute>
-            <SuperAdminAnalyticsPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Hospital Admin Settings */}
       <Route
         path="/settings"
         element={
@@ -111,6 +64,8 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Doctor Dashboard */}
       <Route
         path="/doctor/dashboard"
         element={
@@ -176,7 +131,7 @@ function App() {
         }
       />
       <Route
-        path="/patients/details"
+        path="/patients/:id"
         element={
           <ProtectedRoute>
             <PatientDetailsPage />

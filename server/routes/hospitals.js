@@ -220,35 +220,50 @@ router.get('/google/callback', asyncHandler(async (req, res) => {
 
   if (error) {
     // Redirect to frontend with error
-    return res.redirect(`${process.env.CLIENT_URL}/hospital/settings?google_error=${error}`);
+    return res.redirect(`${process.env.CLIENT_URL}/settings?google_error=${error}`);
   }
 
   if (!code || !hospitalId) {
-    return res.redirect(`${process.env.CLIENT_URL}/hospital/settings?google_error=missing_params`);
+    return res.redirect(`${process.env.CLIENT_URL}/settings?google_error=missing_params`);
   }
 
   try {
     const hospital = await Hospital.findById(hospitalId);
     if (!hospital) {
-      return res.redirect(`${process.env.CLIENT_URL}/hospital/settings?google_error=hospital_not_found`);
+      return res.redirect(`${process.env.CLIENT_URL}/settings?google_error=hospital_not_found`);
     }
 
     // Exchange code for tokens
     const tokens = await calendarService.getTokensFromCode(code);
 
-    // Save tokens to hospital
-    hospital.setGoogleTokens(
-      tokens.access_token,
-      tokens.refresh_token,
-      new Date(tokens.expiry_date)
-    );
-    await hospital.save();
+    // Save tokens to hospital using findByIdAndUpdate to avoid full validation
+    const crypto = require('crypto');
+    const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-32-char-key-for-dev-only!';
+    const IV_LENGTH = 16;
+
+    function encrypt(text) {
+      if (!text) return null;
+      const iv = crypto.randomBytes(IV_LENGTH);
+      const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.slice(0, 32)), iv);
+      let encrypted = cipher.update(text);
+      encrypted = Buffer.concat([encrypted, cipher.final()]);
+      return iv.toString('hex') + ':' + encrypted.toString('hex');
+    }
+
+    await Hospital.findByIdAndUpdate(hospitalId, {
+      'googleCalendar.accessToken': encrypt(tokens.access_token),
+      'googleCalendar.refreshToken': encrypt(tokens.refresh_token),
+      'googleCalendar.tokenExpiry': new Date(tokens.expiry_date),
+      'googleCalendar.connected': true,
+      'googleCalendar.connectedAt': new Date(),
+      'features.googleCalendarEnabled': true
+    });
 
     // Redirect to frontend with success
-    res.redirect(`${process.env.CLIENT_URL}/hospital/settings?google_connected=true`);
+    res.redirect(`${process.env.CLIENT_URL}/settings?google_connected=true`);
   } catch (err) {
     console.error('Google Calendar callback error:', err);
-    res.redirect(`${process.env.CLIENT_URL}/hospital/settings?google_error=token_exchange_failed`);
+    res.redirect(`${process.env.CLIENT_URL}/settings?google_error=token_exchange_failed`);
   }
 }));
 
@@ -400,7 +415,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 // @route   PUT /api/hospitals/:id
 // @desc    Update hospital
 // @access  Private/HospitalAdmin
-router.put('/:id', protect, authorize('hospital_admin', 'super_admin'), asyncHandler(async (req, res) => {
+router.put('/:id', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
   let hospital = await Hospital.findById(req.params.id);
 
   if (!hospital) {
@@ -467,7 +482,7 @@ router.get('/:id/doctors', asyncHandler(async (req, res) => {
 // @route   GET /api/hospitals/:id/stats
 // @desc    Get hospital statistics
 // @access  Private/HospitalAdmin
-router.get('/:id/stats', protect, authorize('hospital_admin', 'super_admin'), asyncHandler(async (req, res) => {
+router.get('/:id/stats', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
   const hospital = await Hospital.findById(req.params.id);
 
   if (!hospital) {

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
+import AddDoctorModal from "../components/AddDoctorModal";
 
 const SPECIALTY_PRIORITY = [
   "General Medicine",
@@ -29,6 +30,7 @@ function DoctorsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchDoctors();
@@ -116,7 +118,11 @@ function DoctorsPage() {
   });
 
   const handleAddDoctor = () => {
-    navigate('/doctors/add');
+    setShowAddModal(true);
+  };
+
+  const handleDoctorAdded = () => {
+    fetchDoctors();
   };
 
   if (loading) {
@@ -130,8 +136,16 @@ function DoctorsPage() {
     );
   }
 
+  const hospitalId = user?.hospitalId?._id || user?.hospitalId;
+
   return (
     <AppLayout title="Doctors" subtitle="Browse specialists and manage patient assignments">
+      <AddDoctorModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={handleDoctorAdded}
+        hospitalId={hospitalId}
+      />
       <main className="doctors-page">
         <section className="panel doctors-directory-card">
           <div className="doctors-toolbar">
