@@ -68,7 +68,7 @@ function SignupPage() {
   return (
     <main className="signup-page">
       <section className="signup-promo">
-        <div className="signup-brand">MedQueue AI</div>
+        <div className="signup-brand">MediFlow</div>
         <div className="signup-promo__copy">
           <h1>Smart Healthcare Scheduling</h1>
           <p>AI-powered triage, real-time queue tracking, and intelligent appointment management for modern hospitals.</p>
@@ -92,7 +92,7 @@ function SignupPage() {
       <section className="signup-form-panel">
         <div className="signup-form-card">
           <div className="signup-form-card__head">
-            <h2>{step === 1 ? "Create Your MedQueue Account" : "Verify Your Phone"}</h2>
+            <h2>{step === 1 ? "Create Your MediFlow Account" : "Verify Your Phone"}</h2>
             <p>
               {step === 1
                 ? "Register to access AI-powered healthcare scheduling and real-time queue management."

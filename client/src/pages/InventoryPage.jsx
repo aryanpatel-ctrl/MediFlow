@@ -1,13 +1,154 @@
+import { useMemo, useState } from "react";
+import { Eye, Edit2, Trash2 } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
+import MediFlowDataTable from "../components/DataTable";
+import toast from "react-hot-toast";
 import {
   inventoryActivities,
   inventoryCategories,
   inventoryOverviewCards,
-  inventoryRows,
+  inventoryRows as initialInventoryRows,
   inventoryTrendBars,
 } from "../data/navigation";
 
 function InventoryPage() {
+  const [inventoryData, setInventoryData] = useState(initialInventoryRows);
+
+  // Handle bulk delete
+  const handleBulkDelete = (selectedRows) => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedRows.length} item(s)?`)) {
+      return;
+    }
+
+    const selectedSkus = selectedRows.map(row => row.sku);
+    setInventoryData(prev => prev.filter(item => !selectedSkus.includes(item.sku)));
+    toast.success(`${selectedRows.length} item(s) deleted`);
+  };
+
+  // Handle single delete
+  const handleDelete = (row) => {
+    if (!window.confirm(`Are you sure you want to delete "${row.item}"?`)) {
+      return;
+    }
+    setInventoryData(prev => prev.filter(item => item.sku !== row.sku));
+    toast.success(`${row.item} deleted`);
+  };
+
+  // Define table columns
+  const tableColumns = useMemo(() => [
+    {
+      name: "Item",
+      selector: (row) => row.item,
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-cell">
+          <div
+            className="table-avatar"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "var(--surface-soft)",
+              color: "var(--text)",
+              fontWeight: 600,
+              fontSize: "0.65rem",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            {row.item.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+          </div>
+          <div className="table-user-info">
+            <span className="table-user-name">{row.item}</span>
+            <span className="table-user-email">{row.sku}</span>
+          </div>
+        </div>
+      ),
+      minWidth: "220px",
+    },
+    {
+      name: "Category",
+      selector: (row) => row.category,
+      sortable: true,
+      minWidth: "120px",
+    },
+    {
+      name: "Availability",
+      selector: (row) => row.availability,
+      sortable: true,
+      cell: (row) => (
+        <span className={`status-badge ${row.availability.toLowerCase() === 'available' ? 'completed' : row.availability.toLowerCase() === 'low' ? 'canceled' : 'scheduled'}`}>
+          {row.availability}
+        </span>
+      ),
+      minWidth: "120px",
+    },
+    {
+      name: "Quantity",
+      selector: (row) => row.percent,
+      sortable: true,
+      cell: (row) => (
+        <div className="inventory-quantity">
+          <strong>{row.quantity}</strong>
+          <div className="inventory-progress">
+            <span style={{ width: `${row.percent}%` }} />
+          </div>
+          <small>{row.percent}%</small>
+        </div>
+      ),
+      minWidth: "150px",
+    },
+    {
+      name: "Expiry",
+      selector: (row) => row.status,
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-info">
+          <span className="table-user-name">{row.status}</span>
+          <span className="table-user-email">{row.state}</span>
+        </div>
+      ),
+      minWidth: "130px",
+    },
+    {
+      name: "Actions",
+      cell: (row) => (
+        <div className="table-actions">
+          <button
+            className="table-action-btn view"
+            onClick={() => toast.success(`Viewing ${row.item}`)}
+            title="View"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            className="table-action-btn edit"
+            onClick={() => toast.success(`Editing ${row.item}`)}
+            title="Edit"
+          >
+            <Edit2 size={16} />
+          </button>
+          <button
+            className="table-action-btn delete"
+            onClick={() => handleDelete(row)}
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ),
+      ignoreRowClick: true,
+      minWidth: "120px",
+    },
+  ], []);
+
+  // Table title
+  const tableTitle = (
+    <div className="datatable-title">
+      <h2>Inventory</h2>
+      <p>{inventoryData.length} items</p>
+    </div>
+  );
+
   return (
     <AppLayout title="Inventory" subtitle="Monitor stock, expiry, and supply movements">
       <main className="inventory-page">
@@ -91,70 +232,20 @@ function InventoryPage() {
         </section>
 
         <section className="inventory-bottom-grid">
-          <section className="panel inventory-table-card">
-            <div className="panel-header">
-              <div>
-                <h2>Inventory</h2>
-              </div>
-              <button className="panel-more" type="button" aria-label="Inventory table actions">
-                ...
-              </button>
-            </div>
-
-            <div className="table-wrap">
-              <table className="inventory-table">
-                <thead>
-                  <tr>
-                    <th />
-                    <th>Photo</th>
-                    <th>Item</th>
-                    <th>Category</th>
-                    <th>Availability</th>
-                    <th>Quantity in Stock</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inventoryRows.map((row) => (
-                    <tr key={row.sku}>
-                      <td><span className="table-check" aria-hidden="true" /></td>
-                      <td><span className="inventory-thumb" aria-hidden="true" /></td>
-                      <td>
-                        <div className="table-meta">
-                          <strong>{row.item}</strong>
-                          <p>{row.sku}</p>
-                        </div>
-                      </td>
-                      <td>{row.category}</td>
-                      <td>
-                        <span className={`status-pill inventory-status inventory-status--${row.availability.toLowerCase().replace(/\s+/g, "-")}`}>
-                          {row.availability}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="inventory-quantity">
-                          <strong>{row.quantity}</strong>
-                          <div className="inventory-progress">
-                            <span style={{ width: `${row.percent}%` }} />
-                          </div>
-                          <small>{row.percent}%</small>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="table-meta">
-                          <strong>{row.status}</strong>
-                          <p>{row.state}</p>
-                        </div>
-                      </td>
-                      <td>
-                        <button className="inventory-action-button" type="button">{row.action}</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <section className="inventory-table-section">
+            <MediFlowDataTable
+              title={tableTitle}
+              columns={tableColumns}
+              data={inventoryData}
+              selectableRows={true}
+              onBulkDelete={handleBulkDelete}
+              searchable={true}
+              searchFields={["item", "sku", "category", "availability"]}
+              pagination={true}
+              paginationPerPage={10}
+              paginationRowsPerPageOptions={[10, 25, 50, 100]}
+              noDataMessage="No inventory items found"
+            />
           </section>
 
           <aside className="panel inventory-activity-card">

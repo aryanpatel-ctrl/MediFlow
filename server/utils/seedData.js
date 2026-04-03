@@ -17,7 +17,7 @@ const seedData = async () => {
     // Create Super Admin
     const superAdmin = await User.create({
       name: 'Super Admin',
-      email: 'admin@medqueue.ai',
+      email: 'admin@mediflow.ai',
       phone: '+911234567890',
       password: 'admin123',
       role: 'super_admin',
@@ -28,7 +28,7 @@ const seedData = async () => {
     // Create Hospital Admin
     const hospitalAdmin = await User.create({
       name: 'City Hospital Admin',
-      email: 'cityhospital@medqueue.ai',
+      email: 'cityhospital@mediflow.ai',
       phone: '+911234567891',
       password: 'hospital123',
       role: 'hospital_admin',
@@ -240,8 +240,8 @@ const seedData = async () => {
     console.log('\n✅ Seed data created successfully!\n');
     console.log('Login Credentials:');
     console.log('==================');
-    console.log('Super Admin: admin@medqueue.ai / admin123');
-    console.log('Hospital Admin: cityhospital@medqueue.ai / hospital123');
+    console.log('Super Admin: admin@mediflow.ai / admin123');
+    console.log('Hospital Admin: cityhospital@mediflow.ai / hospital123');
     console.log('Doctor: dr.rajesh@cityhospital.com / doctor123');
     console.log('Patient: rahul@example.com / patient123');
 

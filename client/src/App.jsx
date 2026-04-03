@@ -1,6 +1,17 @@
 import { useEffect } from "react";
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./hooks";
+
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
 
 // Pages
 import AppointmentsPage from "./pages/AppointmentsPage";
@@ -21,6 +32,8 @@ import DoctorOnboarding from "./pages/DoctorOnboarding";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import HospitalSettings from "./pages/HospitalSettings";
+import PrescriptionPage from "./pages/PrescriptionPage";
+import QueueDashboardPage from "./pages/QueueDashboardPage";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -30,7 +43,7 @@ function ProtectedRoute({ children }) {
     return (
       <div className="loading-screen">
         <div className="loading-spinner"></div>
-        <p>Loading MedQueue AI...</p>
+        <p>Loading MediFlow...</p>
       </div>
     );
   }
@@ -50,8 +63,10 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <Routes>
-      {/* Auth Routes */}
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Auth Routes */}
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/login" element={<LoginPage />} />
 
@@ -187,10 +202,30 @@ function App() {
         }
       />
 
+      {/* Prescription Page - Doctor */}
+      <Route
+        path="/prescription"
+        element={
+          <ProtectedRoute>
+            <PrescriptionPage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Catch all - redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      {/* Queue Dashboard - Hospital Admin */}
+      <Route
+        path="/queue-dashboard"
+        element={
+          <ProtectedRoute>
+            <QueueDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+        {/* Catch all - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

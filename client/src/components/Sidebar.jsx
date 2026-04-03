@@ -35,6 +35,7 @@ const getNavigationItems = (role) => {
   if (role === 'hospital_admin') {
     return [
       { label: "Dashboard", shortLabel: "DB", path: "/" },
+      { label: "Queue", shortLabel: "QU", path: "/queue-dashboard" },
       { label: "Appointments", shortLabel: "AP", path: "/appointments" },
       { label: "Patients", shortLabel: "PT", path: "/patients" },
       { label: "Doctors", shortLabel: "DR", path: "/doctors" },
@@ -47,6 +48,8 @@ const getNavigationItems = (role) => {
   if (role === 'doctor') {
     return [
       { label: "My Dashboard", shortLabel: "DB", path: "/doctor/dashboard" },
+      { label: "Patients", shortLabel: "PT", path: "/patients" },
+      { label: "Appointments", shortLabel: "AP", path: "/appointments" },
     ];
   }
 
@@ -80,7 +83,7 @@ function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
             <Stethoscope size={18} strokeWidth={2.2} />
           </span>
           <div className="brand-text">
-            <strong>MedQueue AI</strong>
+            <strong>MediFlow</strong>
             <p>{user?.role === "patient" ? "Patient workspace" : "Hospital workspace"}</p>
           </div>
         </div>

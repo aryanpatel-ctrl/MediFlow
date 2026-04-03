@@ -16,7 +16,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const doctors = [
   {
     name: 'Dr. Rajesh Kumar',
-    email: 'dr.rajesh@medqueue.ai',
+    email: 'dr.rajesh@mediflow.ai',
     phone: '+91 9876543201',
     specialty: 'General Medicine',
     qualification: 'MBBS, MD',
@@ -28,7 +28,7 @@ const doctors = [
   },
   {
     name: 'Dr. Priya Sharma',
-    email: 'dr.priya@medqueue.ai',
+    email: 'dr.priya@mediflow.ai',
     phone: '+91 9876543202',
     specialty: 'Cardiology',
     qualification: 'MBBS, DM Cardiology',
@@ -40,7 +40,7 @@ const doctors = [
   },
   {
     name: 'Dr. Amit Patel',
-    email: 'dr.amit@medqueue.ai',
+    email: 'dr.amit@mediflow.ai',
     phone: '+91 9876543203',
     specialty: 'Neurology',
     qualification: 'MBBS, DM Neurology',
@@ -52,7 +52,7 @@ const doctors = [
   },
   {
     name: 'Dr. Sneha Reddy',
-    email: 'dr.sneha@medqueue.ai',
+    email: 'dr.sneha@mediflow.ai',
     phone: '+91 9876543204',
     specialty: 'Dermatology',
     qualification: 'MBBS, MD Dermatology',
@@ -64,7 +64,7 @@ const doctors = [
   },
   {
     name: 'Dr. Vikram Singh',
-    email: 'dr.vikram@medqueue.ai',
+    email: 'dr.vikram@mediflow.ai',
     phone: '+91 9876543205',
     specialty: 'Orthopedics',
     qualification: 'MBBS, MS Ortho',
@@ -76,7 +76,7 @@ const doctors = [
   },
   {
     name: 'Dr. Ananya Gupta',
-    email: 'dr.ananya@medqueue.ai',
+    email: 'dr.ananya@mediflow.ai',
     phone: '+91 9876543206',
     specialty: 'Pediatrics',
     qualification: 'MBBS, MD Pediatrics',
@@ -88,7 +88,7 @@ const doctors = [
   },
   {
     name: 'Dr. Mohammed Khan',
-    email: 'dr.khan@medqueue.ai',
+    email: 'dr.khan@mediflow.ai',
     phone: '+91 9876543207',
     specialty: 'ENT',
     qualification: 'MBBS, MS ENT',
@@ -100,7 +100,7 @@ const doctors = [
   },
   {
     name: 'Dr. Lakshmi Iyer',
-    email: 'dr.lakshmi@medqueue.ai',
+    email: 'dr.lakshmi@mediflow.ai',
     phone: '+91 9876543208',
     specialty: 'Gastroenterology',
     qualification: 'MBBS, DM Gastro',
@@ -112,7 +112,7 @@ const doctors = [
   },
   {
     name: 'Dr. Arun Mehta',
-    email: 'dr.arun@medqueue.ai',
+    email: 'dr.arun@mediflow.ai',
     phone: '+91 9876543209',
     specialty: 'Psychiatry',
     qualification: 'MBBS, MD Psychiatry',
@@ -124,7 +124,7 @@ const doctors = [
   },
   {
     name: 'Dr. Kavitha Nair',
-    email: 'dr.kavitha@medqueue.ai',
+    email: 'dr.kavitha@mediflow.ai',
     phone: '+91 9876543210',
     specialty: 'Gynecology',
     qualification: 'MBBS, MS OBG',
@@ -191,11 +191,11 @@ async function seedDoctors() {
     }
 
     // Create or find hospital
-    let hospital = await Hospital.findOne({ name: 'MedQueue Demo Hospital' });
+    let hospital = await Hospital.findOne({ name: 'MediFlow Demo Hospital' });
 
     if (!hospital) {
       hospital = await Hospital.create({
-        name: 'MedQueue Demo Hospital',
+        name: 'MediFlow Demo Hospital',
         email: 'contact@medqueue-demo.com',
         phone: '+91 22 12345678',
         adminId: hospitalAdmin._id,

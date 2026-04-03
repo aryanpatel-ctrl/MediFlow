@@ -60,7 +60,7 @@ export default function Register() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Create Account</h1>
-          <p className="text-gray-600 mt-2">Join MedQueue AI for smarter healthcare</p>
+          <p className="text-gray-600 mt-2">Join MediFlow for smarter healthcare</p>
         </div>
 
         <div className="card">

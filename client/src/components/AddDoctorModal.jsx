@@ -345,35 +345,34 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
               </div>
 
               <div className="personal-fields">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Full Name</label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      placeholder="Dr. Elena Morales"
-                      className={errors.fullName ? 'error' : ''}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Gender</label>
-                    <div className="radio-group">
-                      {["female", "male", "other"].map(g => (
-                        <label key={g} className="radio-label">
-                          <input
-                            type="radio"
-                            name="gender"
-                            value={g}
-                            checked={formData.gender === g}
-                            onChange={handleChange}
-                          />
-                          <span className="radio-custom"></span>
-                          {g.charAt(0).toUpperCase() + g.slice(1)}
-                        </label>
-                      ))}
-                    </div>
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    placeholder="Dr. Elena Morales"
+                    className={errors.fullName ? 'error' : ''}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Gender</label>
+                  <div className="radio-group">
+                    {["female", "male", "other"].map(g => (
+                      <label key={g} className="radio-label">
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={g}
+                          checked={formData.gender === g}
+                          onChange={handleChange}
+                        />
+                        <span className="radio-custom"></span>
+                        {g.charAt(0).toUpperCase() + g.slice(1)}
+                      </label>
+                    ))}
                   </div>
                 </div>
 
@@ -637,48 +636,41 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
             <p className="section-subtitle">Working Days</p>
 
             <div className="schedule-grid-new">
-              <div className="schedule-column-left">
-                {DAYS.slice(0, 4).map(day => (
-                  <ScheduleRow key={day} day={day} />
-                ))}
-              </div>
-              <div className="schedule-column-right">
-                {DAYS.slice(4).map(day => (
-                  <ScheduleRow key={day} day={day} />
-                ))}
+              {DAYS.map(day => (
+                <ScheduleRow key={day} day={day} />
+              ))}
+            </div>
 
-                <div className="max-appointments-section">
-                  <label>Max Appointment per Day</label>
-                  <div className="appointment-limits">
-                    <div className="limit-item">
-                      <span className="limit-label">Min</span>
-                      <button
-                        type="button"
-                        className="limit-btn minus"
-                        onClick={() => setFormData(prev => ({ ...prev, minAppointments: Math.max(1, prev.minAppointments - 1) }))}
-                      >-</button>
-                      <span className="limit-value">{formData.minAppointments}</span>
-                      <button
-                        type="button"
-                        className="limit-btn plus"
-                        onClick={() => setFormData(prev => ({ ...prev, minAppointments: prev.minAppointments + 1 }))}
-                      >+</button>
-                    </div>
-                    <div className="limit-item">
-                      <span className="limit-label">Max</span>
-                      <button
-                        type="button"
-                        className="limit-btn minus"
-                        onClick={() => setFormData(prev => ({ ...prev, maxAppointments: Math.max(1, prev.maxAppointments - 1) }))}
-                      >-</button>
-                      <span className="limit-value">{formData.maxAppointments}</span>
-                      <button
-                        type="button"
-                        className="limit-btn plus"
-                        onClick={() => setFormData(prev => ({ ...prev, maxAppointments: prev.maxAppointments + 1 }))}
-                      >+</button>
-                    </div>
-                  </div>
+            <div className="max-appointments-section">
+              <label>Max Appointment per Day</label>
+              <div className="appointment-limits">
+                <div className="limit-item">
+                  <span className="limit-label">Min</span>
+                  <button
+                    type="button"
+                    className="limit-btn minus"
+                    onClick={() => setFormData(prev => ({ ...prev, minAppointments: Math.max(1, prev.minAppointments - 1) }))}
+                  >-</button>
+                  <span className="limit-value">{formData.minAppointments}</span>
+                  <button
+                    type="button"
+                    className="limit-btn plus"
+                    onClick={() => setFormData(prev => ({ ...prev, minAppointments: prev.minAppointments + 1 }))}
+                  >+</button>
+                </div>
+                <div className="limit-item">
+                  <span className="limit-label">Max</span>
+                  <button
+                    type="button"
+                    className="limit-btn minus"
+                    onClick={() => setFormData(prev => ({ ...prev, maxAppointments: Math.max(1, prev.maxAppointments - 1) }))}
+                  >-</button>
+                  <span className="limit-value">{formData.maxAppointments}</span>
+                  <button
+                    type="button"
+                    className="limit-btn plus"
+                    onClick={() => setFormData(prev => ({ ...prev, maxAppointments: prev.maxAppointments + 1 }))}
+                  >+</button>
                 </div>
               </div>
             </div>

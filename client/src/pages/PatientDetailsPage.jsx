@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Phone, Mail, MapPin, Calendar, FileText, Pill, Activity, Heart, User } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
+import MediFlowDataTable from "../components/DataTable";
+import { useAuth } from "../hooks";
 import api from "../services/api";
-
-const pressureBars = [62, 74, 55, 69, 80, 83, 72, 77, 68, 75, 88, 81];
 
 function PatientDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [appointmentFilter, setAppointmentFilter] = useState("all");
 
   useEffect(() => {
     if (id) {
@@ -20,17 +24,23 @@ function PatientDetailsPage() {
 
   const fetchPatientDetails = async () => {
     try {
-      // Fetch patient info
       const patientRes = await api.get(`/appointments/patients/${id}`);
       setPatient(patientRes.data.patient);
 
-      // Fetch patient appointments
       try {
         const appointmentsRes = await api.get(`/appointments/patients/${id}/history`);
         setAppointments(appointmentsRes.data.appointments || []);
       } catch {
-        // If no appointments endpoint, try alternative
         setAppointments([]);
+      }
+
+      if (user?.role === 'doctor' || user?.role === 'hospital_admin') {
+        try {
+          const prescriptionsRes = await api.get(`/prescriptions/patient/${id}`);
+          setPrescriptions(prescriptionsRes.data.prescriptions || []);
+        } catch {
+          setPrescriptions([]);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch patient details:", error);
@@ -83,6 +93,67 @@ function PatientDetailsPage() {
     return status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   };
 
+  // Filter appointments based on tab selection
+  const filteredAppointments = useMemo(() => {
+    switch (appointmentFilter) {
+      case "upcoming":
+        return appointments.filter(a =>
+          ["booked", "confirmed"].includes(a.status) && new Date(a.date) >= new Date()
+        );
+      case "history":
+        return appointments.filter(a => a.status === "completed");
+      default:
+        return appointments;
+    }
+  }, [appointments, appointmentFilter]);
+
+  // Table columns for appointments
+  const appointmentColumns = useMemo(() => [
+    {
+      name: "Date",
+      selector: (row) => new Date(row.date).getTime(),
+      sortable: true,
+      cell: (row) => formatDate(row.date),
+      minWidth: "100px",
+    },
+    {
+      name: "Time",
+      selector: (row) => row.slotTime,
+      sortable: true,
+      cell: (row) => row.slotTime || "--",
+      minWidth: "80px",
+    },
+    {
+      name: "Type",
+      selector: (row) => row.appointmentType || "Consultation",
+      sortable: true,
+      minWidth: "100px",
+    },
+    {
+      name: "Doctor",
+      selector: (row) => row.doctorId?.userId?.name || "Doctor",
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-info">
+          <span className="table-user-name">{row.doctorId?.userId?.name || "Doctor"}</span>
+          <span className="table-user-email">{row.doctorId?.specialty || ""}</span>
+        </div>
+      ),
+      minWidth: "140px",
+    },
+    {
+      name: "Status",
+      selector: (row) => row.status,
+      sortable: true,
+      cell: (row) => (
+        <span className={`status-badge ${getStatusClass(row.status)}`}>
+          {formatStatus(row.status)}
+        </span>
+      ),
+      minWidth: "100px",
+    },
+  ], []);
+
   if (loading) {
     return (
       <AppLayout title="Patient Details" subtitle="Loading...">
@@ -99,11 +170,7 @@ function PatientDetailsPage() {
       <AppLayout title="Patient Details" subtitle="Not Found">
         <div className="empty-state" style={{ textAlign: "center", padding: "3rem" }}>
           <p style={{ fontSize: "1.1rem", color: "#6b7280" }}>Patient not found</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="btn-primary"
-            style={{ marginTop: "1rem", padding: "0.75rem 1.5rem", borderRadius: "8px", border: "none", cursor: "pointer" }}
-          >
+          <button onClick={() => navigate(-1)} className="btn-primary" style={{ marginTop: "1rem" }}>
             Go Back
           </button>
         </div>
@@ -115,258 +182,280 @@ function PatientDetailsPage() {
   const age = calculateAge(patient.dateOfBirth);
   const gender = patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : "--";
 
-  // Get stats
+  // Stats
   const completedAppointments = appointments.filter(a => a.status === "completed").length;
   const upcomingAppointments = appointments.filter(a =>
     ["booked", "confirmed"].includes(a.status) && new Date(a.date) >= new Date()
   ).length;
-  const cancelledAppointments = appointments.filter(a =>
-    ["cancelled", "no_show"].includes(a.status)
-  ).length;
+
+  const latestNote = appointments.find(a => a.triageData?.preVisitSummary || a.notes);
 
   return (
     <AppLayout title="Patient Details" subtitle={`Patients / ${patient.name}`}>
-      <main className="patient-details-page">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            marginBottom: "1rem",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#0d9488",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontSize: "0.95rem",
-            fontWeight: "500"
-          }}
-        >
-          ← Back to Appointments
-        </button>
-
-        <section className="patient-details-top">
-          <section className="panel patient-profile-card">
-            <div className="patient-profile-main">
-              <div className="patient-profile-photo">{getInitials(patient.name)}</div>
-              <div className="patient-profile-info">
-                <div className="patient-profile-head">
-                  <div>
-                    <h2>{patient.name}</h2>
-                    <p>{patientCode}</p>
-                  </div>
-                  <button className="panel-more" type="button" aria-label="Patient actions">
-                    ...
-                  </button>
+      <main className="pd-page">
+        {/* Top Section */}
+        <section className="pd-top-section">
+          {/* Patient Profile Card */}
+          <div className="pd-profile-card panel">
+            <div className="pd-profile-header">
+              <div className="pd-avatar">{getInitials(patient.name)}</div>
+              <div className="pd-profile-info">
+                <div className="pd-name-row">
+                  <h2>{patient.name}</h2>
+                  <span className="pd-code">{patientCode}</span>
                 </div>
-
-                <div className="patient-contact-row">
-                  <span>{patient.phone || "--"}</span>
-                  <span>{patient.email || "--"}</span>
-                  {patient.address && <span>{patient.address}</span>}
-                </div>
-
-                <div className="patient-meta-grid">
-                  <div>
-                    <small>Age & Gender</small>
-                    <strong>{age !== "--" ? `${age} / ${gender}` : `-- / ${gender}`}</strong>
-                  </div>
-                  <div>
-                    <small>DOB</small>
-                    <strong>{formatDate(patient.dateOfBirth)}</strong>
-                  </div>
-                  <div>
-                    <small>Blood Type</small>
-                    <strong>{patient.bloodType || "--"}</strong>
-                  </div>
-                  <div>
-                    <small>Total Visits</small>
-                    <strong>{patient.totalAppointments || appointments.length || 0}</strong>
-                  </div>
-                  <div>
-                    <small>Status</small>
-                    <strong style={{ color: "#10b981" }}>{patient.isVerified ? "Verified" : "Active"}</strong>
-                  </div>
-                  <div>
-                    <small>Member Since</small>
-                    <strong>{formatDate(patient.createdAt)}</strong>
-                  </div>
+                <div className="pd-contact-row">
+                  {patient.phone && (
+                    <span><Phone size={14} /> {patient.phone}</span>
+                  )}
+                  {patient.email && (
+                    <span><Mail size={14} /> {patient.email}</span>
+                  )}
+                  {patient.address && (
+                    <span><MapPin size={14} /> {patient.address}</span>
+                  )}
                 </div>
               </div>
+              <button className="panel-more">...</button>
             </div>
-          </section>
+            <div className="pd-meta-row">
+              <div className="pd-meta-item">
+                <strong>{age !== "--" ? `${age}/${gender}` : `--/${gender}`}</strong>
+                <span>Age & Gender</span>
+              </div>
+              <div className="pd-meta-item">
+                <strong>{formatDate(patient.dateOfBirth)}</strong>
+                <span>DOB</span>
+              </div>
+              <div className="pd-meta-item">
+                <strong>{patient.bloodType || "--"}</strong>
+                <span>Blood Type</span>
+              </div>
+              <div className="pd-meta-item">
+                <strong>{appointments.length}</strong>
+                <span>Total Visits</span>
+              </div>
+              <div className="pd-meta-item">
+                <strong className="status-active">{patient.isVerified ? "Verified" : "Active"}</strong>
+                <span>Status</span>
+              </div>
+              <div className="pd-meta-item">
+                <strong>{formatDate(patient.createdAt)}</strong>
+                <span>Member Since</span>
+              </div>
+            </div>
+          </div>
 
-          <aside className="panel patient-id-card">
-            <div className="patient-id-brand">MedQueue AI</div>
-            <div className="patient-id-body">
+          {/* Patient ID Card */}
+          <div className="pd-id-card">
+            <div className="pd-id-brand">MediFlow</div>
+            <div className="pd-id-avatar">{getInitials(patient.name)}</div>
+            <div className="pd-id-info">
               <strong>{patient.name}</strong>
-              <p>{patientCode}</p>
+              <span>{patientCode}</span>
             </div>
-            <div className="patient-id-footer">
-              <span>{completedAppointments} Completed</span>
-              <span>{upcomingAppointments} Upcoming</span>
+            <div className="pd-id-stats">
+              <div>
+                <strong>{completedAppointments}</strong>
+                <span>Completed</span>
+              </div>
+              <div>
+                <strong>{upcomingAppointments}</strong>
+                <span>Upcoming</span>
+              </div>
             </div>
-          </aside>
+          </div>
         </section>
 
-        <section className="patient-details-grid">
-          <div className="patient-details-main">
+        {/* Main Content */}
+        <section className="pd-content">
+          {/* Left Column */}
+          <div className="pd-left-column">
             {/* Stats Cards */}
-            <section className="patient-vitals-grid">
-              <article className="panel patient-vital-card">
-                <div className="patient-vital-icon" style={{ background: "#e0f2fe", color: "#0284c7" }}>TA</div>
-                <p>Total Appointments</p>
-                <strong>{appointments.length || patient.totalAppointments || 0}</strong>
-              </article>
-              <article className="panel patient-vital-card">
-                <div className="patient-vital-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>CP</div>
-                <p>Completed</p>
-                <strong>{completedAppointments}</strong>
-              </article>
-              <article className="panel patient-vital-card">
-                <div className="patient-vital-icon" style={{ background: "#fef3c7", color: "#d97706" }}>UP</div>
-                <p>Upcoming</p>
-                <strong>{upcomingAppointments}</strong>
-              </article>
-              <article className="panel patient-vital-card">
-                <div className="patient-vital-icon" style={{ background: "#fee2e2", color: "#dc2626" }}>CN</div>
-                <p>Cancelled</p>
-                <strong>{cancelledAppointments}</strong>
-              </article>
-            </section>
+            <div className="pd-stats-grid">
+              <div className="pd-stat-card">
+                <div className="pd-stat-icon"><Calendar size={20} /></div>
+                <span className="pd-stat-label">Total Visits</span>
+                <strong className="pd-stat-value">{appointments.length}</strong>
+              </div>
+              <div className="pd-stat-card">
+                <div className="pd-stat-icon"><Activity size={20} /></div>
+                <span className="pd-stat-label">Completed</span>
+                <strong className="pd-stat-value">{completedAppointments}</strong>
+              </div>
+              <div className="pd-stat-card">
+                <div className="pd-stat-icon"><Heart size={20} /></div>
+                <span className="pd-stat-label">Prescriptions</span>
+                <strong className="pd-stat-value">{prescriptions.length}</strong>
+              </div>
+            </div>
 
-            {/* Visit History Chart */}
-            <section className="panel blood-pressure-card">
-              <div className="panel-header">
-                <div>
-                  <h2>Visit History</h2>
-                </div>
-                <p>Last 12 months</p>
+            {/* Medical History */}
+            <div className="panel pd-panel">
+              <div className="pd-panel-header">
+                <FileText size={18} />
+                <h3>Medical History</h3>
+                <button className="panel-more">...</button>
               </div>
-              <div className="pressure-legend">
-                <span><i className="legend-dot legend-dot--teal" /> Appointments</span>
-              </div>
-              <div className="pressure-chart" aria-hidden="true">
-                {pressureBars.map((value, index) => (
-                  <div className="pressure-bar-group" key={index}>
-                    <span className="pressure-bar pressure-bar--bottom" style={{ height: `${Math.max(20, value - 20)}px` }} />
-                  </div>
-                ))}
-              </div>
-              <div className="pressure-months" aria-hidden="true">
-                {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month) => (
-                  <span key={month}>{month}</span>
-                ))}
-              </div>
-            </section>
-
-            {/* Medical Info */}
-            <section className="patient-bottom-grid">
-              <section className="panel">
-                <div className="panel-header panel-header--tight">
-                  <h2>Medical History</h2>
-                  <button className="panel-more" type="button" aria-label="Medical history actions">
-                    ...
-                  </button>
-                </div>
+              <div className="pd-panel-body">
                 {patient.medicalHistory?.length > 0 ? (
-                  <ul className="file-list">
+                  <ul className="pd-history-list">
                     {patient.medicalHistory.map((item, idx) => (
                       <li key={idx}>
-                        <span className="file-mark" />
-                        <span>{item}</span>
+                        <span className="pd-history-dot"></span>
+                        {item}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p style={{ color: "#6b7280", padding: "1rem 0" }}>No medical history recorded</p>
+                  <p className="pd-empty">No medical history recorded</p>
                 )}
-              </section>
+              </div>
+            </div>
 
-              <section className="panel">
-                <div className="panel-header panel-header--tight">
-                  <h2>Patient Notes</h2>
-                  <button className="panel-more" type="button" aria-label="Notes actions">
-                    ...
-                  </button>
-                </div>
-                {appointments.filter(a => a.triageData?.preVisitSummary || a.notes).length > 0 ? (
-                  <div className="patient-note-card">
-                    {(() => {
-                      const latestNote = appointments.find(a => a.triageData?.preVisitSummary || a.notes);
-                      return latestNote ? (
-                        <>
-                          <strong>{latestNote.doctorId?.userId?.name || "Doctor"}</strong>
-                          <p>{formatDate(latestNote.date)}</p>
-                          <div className="patient-note-copy">
-                            {latestNote.triageData?.preVisitSummary || latestNote.notes}
-                          </div>
-                        </>
-                      ) : null;
-                    })()}
+            {/* Patient Note */}
+            <div className="panel pd-panel">
+              <div className="pd-panel-header">
+                <FileText size={18} />
+                <h3>Patient Note</h3>
+                <button className="panel-more">...</button>
+              </div>
+              <div className="pd-panel-body">
+                {latestNote ? (
+                  <div className="pd-note">
+                    <div className="pd-note-header">
+                      <strong>{latestNote.doctorId?.userId?.name || "Doctor"}</strong>
+                      <span>{formatDate(latestNote.date)}</span>
+                    </div>
+                    <p>{latestNote.triageData?.preVisitSummary || latestNote.notes}</p>
                   </div>
                 ) : (
-                  <p style={{ color: "#6b7280", padding: "1rem 0" }}>No notes recorded</p>
+                  <p className="pd-empty">No notes recorded</p>
                 )}
-              </section>
-            </section>
+              </div>
+            </div>
           </div>
 
-          <div className="patient-details-side">
-            {/* Medical Summary */}
-            <section className="panel">
-              <div className="panel-header panel-header--tight">
-                <h2>Medical Info</h2>
-                <button className="panel-more" type="button" aria-label="Medical info actions">
-                  ...
-                </button>
+          {/* Right Column */}
+          <div className="pd-right-column">
+            {/* Medical Info */}
+            <div className="panel pd-panel">
+              <div className="pd-panel-header">
+                <User size={18} />
+                <h3>Medical Info</h3>
+                <button className="panel-more">...</button>
               </div>
-
-              <div className="medical-summary-grid">
-                <div className="medical-box">
-                  <small>Conditions</small>
-                  <div className="medical-tags">
-                    {patient.conditions?.length > 0 ? (
-                      patient.conditions.map((condition, idx) => (
-                        <span key={idx}>{condition}</span>
-                      ))
-                    ) : (
-                      <span style={{ background: "#f3f4f6", color: "#6b7280" }}>None recorded</span>
-                    )}
+              <div className="pd-panel-body">
+                <div className="pd-info-grid">
+                  <div className="pd-info-section">
+                    <label>Conditions</label>
+                    <div className="pd-tags">
+                      {patient.conditions?.length > 0 ? (
+                        patient.conditions.map((item, idx) => (
+                          <span key={idx} className="pd-tag pd-tag--blue">
+                            <Heart size={12} /> {item}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="pd-tag pd-tag--gray">None recorded</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="pd-info-section">
+                    <label>Allergies</label>
+                    <div className="pd-tags">
+                      {patient.allergies?.length > 0 ? (
+                        patient.allergies.map((item, idx) => (
+                          <span key={idx} className="pd-tag pd-tag--red">• {item}</span>
+                        ))
+                      ) : (
+                        <span className="pd-tag pd-tag--gray">None recorded</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="medical-box">
-                  <small>Allergies</small>
-                  <div className="medical-tags">
-                    {patient.allergies?.length > 0 ? (
-                      patient.allergies.map((allergy, idx) => (
-                        <span key={idx} style={{ background: "#fef2f2", color: "#991b1b" }}>{allergy}</span>
-                      ))
-                    ) : (
-                      <span style={{ background: "#f3f4f6", color: "#6b7280" }}>None recorded</span>
-                    )}
-                  </div>
+              </div>
+            </div>
+
+            {/* Prescriptions */}
+            {(user?.role === 'doctor' || user?.role === 'hospital_admin') && (
+              <div className="panel pd-panel">
+                <div className="pd-panel-header">
+                  <Pill size={18} />
+                  <h3>Medications</h3>
+                  {user?.role === 'doctor' && (
+                    <button
+                      className="btn-primary btn-sm"
+                      onClick={() => navigate(`/prescription?patientId=${id}`)}
+                    >
+                      + Add
+                    </button>
+                  )}
+                </div>
+                <div className="pd-panel-body pd-panel-body--table">
+                  {prescriptions.length > 0 ? (
+                    <table className="pd-medications-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Date</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {prescriptions.slice(0, 5).map((rx) => (
+                          <tr key={rx._id}>
+                            <td>
+                              <strong>{rx.prescriptionNumber}</strong>
+                              <span>{rx.diagnosis}</span>
+                            </td>
+                            <td>{formatDate(rx.createdAt)}</td>
+                            <td>
+                              <span className={`pd-med-status pd-med-status--${rx.status}`}>
+                                {rx.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="pd-empty">No prescriptions found</p>
+                  )}
                 </div>
               </div>
-            </section>
+            )}
 
-            {/* Appointments Table */}
-            <section className="panel">
-              <div className="panel-header panel-header--tight">
-                <h2>Appointments</h2>
-                <button className="panel-more" type="button" aria-label="Appointments actions">
-                  ...
+            {/* Appointments */}
+            <div className="panel pd-panel pd-appointments-panel">
+              <div className="pd-panel-header">
+                <Calendar size={18} />
+                <h3>Appointments</h3>
+                <button className="panel-more">...</button>
+              </div>
+              <div className="pd-tabs">
+                <button
+                  className={appointmentFilter === "all" ? "active" : ""}
+                  onClick={() => setAppointmentFilter("all")}
+                >
+                  All
+                </button>
+                <button
+                  className={appointmentFilter === "upcoming" ? "active" : ""}
+                  onClick={() => setAppointmentFilter("upcoming")}
+                >
+                  Upcoming
+                </button>
+                <button
+                  className={appointmentFilter === "history" ? "active" : ""}
+                  onClick={() => setAppointmentFilter("history")}
+                >
+                  History
                 </button>
               </div>
-              <div className="appointment-tabs" aria-hidden="true">
-                <span className="is-active">All</span>
-                <span>Upcoming</span>
-                <span>Completed</span>
-              </div>
-              <div className="table-wrap">
-                {appointments.length > 0 ? (
-                  <table className="patient-history-table">
+              <div className="pd-panel-body pd-panel-body--table">
+                {filteredAppointments.length > 0 ? (
+                  <table className="pd-appointments-table">
                     <thead>
                       <tr>
                         <th>Date</th>
@@ -377,19 +466,19 @@ function PatientDetailsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {appointments.slice(0, 10).map((apt) => (
+                      {filteredAppointments.slice(0, 10).map((apt) => (
                         <tr key={apt._id}>
                           <td>{formatDate(apt.date)}</td>
                           <td>{apt.slotTime || "--"}</td>
                           <td>{apt.appointmentType || "Consultation"}</td>
                           <td>
-                            <div className="table-meta">
+                            <div className="pd-doctor-cell">
                               <strong>{apt.doctorId?.userId?.name || "Doctor"}</strong>
-                              <p>{apt.doctorId?.specialty || ""}</p>
+                              <span>{apt.doctorId?.specialty || ""}</span>
                             </div>
                           </td>
                           <td>
-                            <span className={`status-pill status-${getStatusClass(apt.status)}`}>
+                            <span className={`status-badge ${getStatusClass(apt.status)}`}>
                               {formatStatus(apt.status)}
                             </span>
                           </td>
@@ -398,12 +487,10 @@ function PatientDetailsPage() {
                     </tbody>
                   </table>
                 ) : (
-                  <p style={{ color: "#6b7280", padding: "1.5rem", textAlign: "center" }}>
-                    No appointments found
-                  </p>
+                  <p className="pd-empty">No appointments found</p>
                 )}
               </div>
-            </section>
+            </div>
           </div>
         </section>
       </main>

@@ -515,7 +515,7 @@ router.post('/patients/quick-register', protect, asyncHandler(async (req, res) =
   const patient = await User.create({
     name,
     phone,
-    email: email || `${phone}@walkin.medqueue.ai`,
+    email: email || `${phone}@walkin.mediflow.ai`,
     password: tempPassword,
     gender,
     dateOfBirth,

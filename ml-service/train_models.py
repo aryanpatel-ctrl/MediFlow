@@ -1,5 +1,5 @@
 """
-MedQueue AI - ML Model Training Script
+MediFlow - ML Model Training Script
 Trains no-show prediction and duration prediction models using the Kaggle dataset.
 """
 
@@ -215,7 +215,7 @@ def train_duration_model(df):
 def main():
     """Main training pipeline"""
     print("="*60)
-    print("MedQueue AI - ML Model Training")
+    print("MediFlow - ML Model Training")
     print("="*60)
 
     # Load and preprocess data

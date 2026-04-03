@@ -1,8 +1,107 @@
 const express = require('express');
 const router = express.Router();
-const { Queue, Appointment, Notification } = require('../models');
+const { Queue, Appointment, Notification, Doctor } = require('../models');
 const { protect, authorize, asyncHandler, AppError } = require('../middleware');
 const queueManager = require('../services/queueManager');
+
+// @route   GET /api/queue/hospital/:hospitalId/summary
+// @desc    Get hospital-wide queue summary for dashboard
+// @access  Private/Hospital Admin
+router.get('/hospital/:hospitalId/summary', protect, authorize('hospital_admin', 'doctor'), asyncHandler(async (req, res) => {
+  const summary = await Queue.getHospitalSummary(req.params.hospitalId);
+
+  res.status(200).json({
+    success: true,
+    summary
+  });
+}));
+
+// @route   GET /api/queue/hospital/:hospitalId/all-queues
+// @desc    Get all doctor queues for a hospital
+// @access  Private/Hospital Admin
+router.get('/hospital/:hospitalId/all-queues', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const queues = await Queue.find({
+    hospitalId: req.params.hospitalId,
+    date: today
+  })
+    .populate({
+      path: 'doctorId',
+      populate: { path: 'userId', select: 'name email phone' }
+    })
+    .populate('entries.patientId', 'name phone email')
+    .populate('entries.appointmentId', 'scheduledTime type reason');
+
+  const formattedQueues = queues.map(queue => ({
+    _id: queue._id,
+    doctorId: queue.doctorId._id,
+    doctorName: queue.doctorId.userId?.name || 'Unknown',
+    specialty: queue.doctorId.specialty,
+    status: queue.status,
+    currentDelay: queue.currentDelay,
+    entries: queue.entries.map(entry => ({
+      _id: entry._id,
+      queueNumber: entry.queueNumber,
+      patientId: entry.patientId?._id || entry.patientId,
+      patientName: entry.patientId?.name || 'Unknown',
+      patientPhone: entry.patientId?.phone || '',
+      status: entry.status,
+      slotTime: entry.slotTime,
+      checkInTime: entry.checkInTime,
+      urgencyScore: entry.urgencyScore,
+      appointmentType: entry.appointmentId?.type,
+      reason: entry.appointmentId?.reason
+    })),
+    summary: queue.getSummary()
+  }));
+
+  res.status(200).json({
+    success: true,
+    queues: formattedQueues
+  });
+}));
+
+// @route   POST /api/queue/hospital/:hospitalId/initialize
+// @desc    Initialize queues for all doctors for today
+// @access  Private/Hospital Admin
+router.post('/hospital/:hospitalId/initialize', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get all active doctors in the hospital
+  const doctors = await Doctor.find({
+    hospitalId: req.params.hospitalId,
+    isActive: true
+  });
+
+  const initializedQueues = [];
+
+  for (const doctor of doctors) {
+    const existingQueue = await Queue.findOne({
+      doctorId: doctor._id,
+      date: today
+    });
+
+    if (!existingQueue) {
+      const queue = await Queue.create({
+        doctorId: doctor._id,
+        hospitalId: req.params.hospitalId,
+        date: today,
+        status: 'not_started',
+        entries: []
+      });
+      initializedQueues.push(queue);
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Initialized ${initializedQueues.length} new queues`,
+    totalDoctors: doctors.length
+  });
+}));
 
 // @route   GET /api/queue/:doctorId/today
 // @desc    Get today's queue for a doctor

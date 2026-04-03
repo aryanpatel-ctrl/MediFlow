@@ -48,7 +48,7 @@ export default function DashboardLayout({ role }) {
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold">M</span>
             </div>
-            <span className="font-bold text-lg">MedQueue AI</span>
+            <span className="font-bold text-lg">MediFlow</span>
           </Link>
         </div>
 
@@ -103,7 +103,7 @@ export default function DashboardLayout({ role }) {
           />
           <aside className="relative w-64 bg-white flex flex-col">
             <div className="flex items-center justify-between h-16 px-6 border-b">
-              <span className="font-bold text-lg">MedQueue AI</span>
+              <span className="font-bold text-lg">MediFlow</span>
               <button onClick={() => setSidebarOpen(false)}>
                 <X size={24} />
               </button>

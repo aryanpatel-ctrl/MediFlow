@@ -1,5 +1,5 @@
 {
-  "name": "medqueue-client",
+  "name": "mediflow-client",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -14,11 +14,13 @@
     "date-fns": "^3.0.6",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
+    "react-data-table-component": "^7.7.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "react-redux": "^9.0.4",
     "react-router-dom": "^6.21.1",
-    "socket.io-client": "^4.6.1"
+    "socket.io-client": "^4.6.1",
+    "styled-components": "^6.3.12"
   },
   "devDependencies": {
     "@types/react": "^18.2.45",

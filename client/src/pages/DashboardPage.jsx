@@ -5,7 +5,7 @@ import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
 
-const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@medqueue.ai";
+const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@mediflow.ai";
 const DEPARTMENT_BULLET_TONES = ["dark", "light", "aqua", "soft", "muted", "pale"];
 const CALENDAR_DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 

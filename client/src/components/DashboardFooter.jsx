@@ -12,7 +12,7 @@ const modalContent = {
   },
   contact: {
     title: "Contact",
-    body: "Contact us at support@medqueue.ai or +91 99999 99999. Update these placeholders with your real support details.",
+    body: "Contact us at support@mediflow.ai or +91 99999 99999. Update these placeholders with your real support details.",
   },
 };
 
