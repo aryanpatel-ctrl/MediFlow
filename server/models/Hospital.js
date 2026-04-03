@@ -84,12 +84,15 @@ const hospitalSchema = new mongoose.Schema({
   // Available specialties in this hospital
   specialties: [{
     type: String,
-    enum: [
-      'General Medicine', 'Cardiology', 'Neurology', 'Orthopedics',
-      'Pediatrics', 'Gynecology', 'Dermatology', 'ENT', 'Ophthalmology',
-      'Gastroenterology', 'Pulmonology', 'Psychiatry', 'Urology',
-      'Nephrology', 'Oncology', 'Emergency', 'Dental'
-    ]
+    trim: true
+  }],
+  appointmentTypes: [{
+    type: String,
+    trim: true
+  }],
+  inventoryCategories: [{
+    type: String,
+    trim: true
   }],
   // Operating hours
   operatingHours: {

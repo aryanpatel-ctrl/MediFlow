@@ -108,6 +108,7 @@ const customStyles = {
 };
 
 function MediFlowDataTable({
+  className = "",
   title,
   columns,
   data,
@@ -127,6 +128,7 @@ function MediFlowDataTable({
   const [searchText, setSearchText] = useState("");
   const [selectedRows, setSelectedRows] = useState([]);
   const [toggleCleared, setToggleCleared] = useState(false);
+  const hasSubHeader = searchable || Boolean(actions);
 
   // Filter data based on search text
   const filteredData = useMemo(() => {
@@ -217,9 +219,10 @@ function MediFlowDataTable({
   }, [searchText, searchable, actions]);
 
   return (
-    <div className="datatable-container">
+    <div className={`datatable-container ${className}`.trim()}>
       <DataTable
         title={title}
+        noHeader={!title}
         columns={columns}
         data={filteredData}
         customStyles={customStyles}
@@ -245,7 +248,7 @@ function MediFlowDataTable({
           selectAllRowsItem: true,
           selectAllRowsItemText: "All",
         }}
-        subHeader
+        subHeader={hasSubHeader}
         subHeaderComponent={subHeaderComponent}
         sortIcon={<ChevronDown size={14} />}
         noDataComponent={

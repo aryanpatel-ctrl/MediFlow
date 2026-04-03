@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, Calendar, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../hooks";
+import { useAuth, useHospitalSettings } from "../hooks";
 import api from "../services/api";
 import MediFlowDataTable from "../components/DataTable";
 import AddAppointmentModal from "../components/AddAppointmentModal";
@@ -11,8 +11,6 @@ import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal
 import toast from "react-hot-toast";
 
 const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@mediflow.ai";
-const APPOINTMENT_TYPES = ["Consultation", "Follow-up", "Surgery", "Telemedicine"];
-
 const startOfDay = (dateValue) => {
   const date = new Date(dateValue);
   date.setHours(0, 0, 0, 0);
@@ -105,7 +103,9 @@ const getStatusClass = (status) => {
   }
 };
 
-const buildMockAppointments = () => {
+const buildMockAppointments = (appointmentTypes) => {
+  const configuredTypes = appointmentTypes.length ? appointmentTypes : ["Consultation"];
+  const getType = (index) => configuredTypes[index % configuredTypes.length];
   const today = startOfDay(new Date());
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -121,7 +121,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-001",
       doctorName: "Dr. Rajesh Sharma",
       doctorSpecialty: "General Medicine",
-      appointmentType: "Consultation",
+      appointmentType: getType(0),
       notes: "Chest pain check",
       date: today.toISOString(),
       slotTime: "08:30",
@@ -134,7 +134,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-024",
       doctorName: "Dr. Priya Patel",
       doctorSpecialty: "Cardiology",
-      appointmentType: "Follow-up",
+      appointmentType: getType(1),
       notes: "Post flu review",
       date: today.toISOString(),
       slotTime: "09:00",
@@ -147,7 +147,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-053",
       doctorName: "Dr. Sneha Reddy",
       doctorSpecialty: "Pediatrics",
-      appointmentType: "Consultation",
+      appointmentType: getType(2),
       notes: "Fever and cough",
       date: today.toISOString(),
       slotTime: "09:30",
@@ -160,7 +160,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-079",
       doctorName: "Dr. Amit Kumar",
       doctorSpecialty: "Orthopedics",
-      appointmentType: "Surgery",
+      appointmentType: getType(3),
       notes: "Knee review and imaging",
       date: tomorrow.toISOString(),
       slotTime: "10:00",
@@ -173,7 +173,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-091",
       doctorName: "Dr. Kiran Mehta",
       doctorSpecialty: "Dermatology",
-      appointmentType: "Telemedicine",
+      appointmentType: getType(4),
       notes: "Skin rash follow-up",
       date: dayAfterTomorrow.toISOString(),
       slotTime: "11:15",
@@ -186,7 +186,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-129",
       doctorName: "Dr. Priya Patel",
       doctorSpecialty: "Cardiology",
-      appointmentType: "Follow-up",
+      appointmentType: getType(5),
       notes: "ECG result discussion",
       date: thirdDay.toISOString(),
       slotTime: "13:00",
@@ -255,6 +255,7 @@ const buildTypeBars = (typeSummary) => {
 
 function AppointmentsPage() {
   const { user } = useAuth();
+  const { appointmentTypes } = useHospitalSettings();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -266,7 +267,7 @@ function AppointmentsPage() {
 
   useEffect(() => {
     fetchAppointments(true); // Show loading only on initial load
-  }, [user]);
+  }, [user, appointmentTypes]);
 
   const fetchAppointments = async (showLoading = false) => {
     if (showLoading) {
@@ -305,7 +306,7 @@ function AppointmentsPage() {
       let allAppointments = appointmentGroups.flat();
 
       if (user?.email === TEST_HOSPITAL_ADMIN_EMAIL && allAppointments.length === 0) {
-        allAppointments = buildMockAppointments();
+        allAppointments = buildMockAppointments(appointmentTypes);
       }
 
       allAppointments.sort((left, right) => {
@@ -395,7 +396,7 @@ function AppointmentsPage() {
   const maxTrendCount = Math.max(...trendData.map((item) => item.count), 1);
   const highlightedTrendIndex = trendData.findIndex((item) => item.count === maxTrendCount && item.count > 0);
 
-  const typeSummary = APPOINTMENT_TYPES.map((label) => {
+  const typeSummary = appointmentTypes.map((label) => {
     const count = filteredAppointments.filter((appointment) => appointment.appointmentType === label).length;
     const percent = filteredStats.total > 0 ? Math.round((count / filteredStats.total) * 100) : 0;
 

@@ -1,43 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import api from "../services/api";
-
-const DEPARTMENTS = [
-  "General Medicine",
-  "Cardiology",
-  "Orthopedics",
-  "Pediatrics",
-  "Dermatology",
-  "Neurology",
-  "ENT",
-  "Ophthalmology",
-  "Gastroenterology",
-  "Pulmonology",
-  "Psychiatry",
-  "Gynecology",
-  "Endocrinology",
-  "Oncology",
-  "Radiology",
-  "Anesthesiology",
-  "Emergency",
-];
-
-const SPECIALIZATIONS = {
-  "General Medicine": ["Internal Medicine", "Family Medicine", "Preventive Care"],
-  "Cardiology": ["Interventional Cardiology", "Electrophysiology", "Heart Failure"],
-  "Orthopedics": ["Sports Medicine", "Joint Replacement", "Spine Surgery"],
-  "Pediatrics": ["Neonatology", "Pediatric Surgery", "Adolescent Medicine"],
-  "Dermatology": ["Cosmetic Dermatology", "Pediatric Dermatology", "Dermatopathology"],
-  "Neurology": ["Stroke", "Epilepsy", "Movement Disorders"],
-  "Endocrinology": ["Diabetes & Metabolic Disorders", "Thyroid Disorders", "Hormone Therapy"],
-  "Oncology": ["Medical Oncology", "Surgical Oncology", "Radiation Oncology"],
-  "Radiology": ["Diagnostic Radiology", "Interventional Radiology", "Nuclear Medicine"],
-};
+import { useHospitalSettings } from "../hooks";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ["00", "15", "30", "45"];
 
 function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
+  const { specialties } = useHospitalSettings(hospitalId);
+  const departmentOptions = specialties.length ? specialties : ["General Medicine"];
   const fileInputRef = useRef(null);
   const certInputRef = useRef(null);
 
@@ -58,7 +29,6 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
     emergencyContactName: "",
     emergencyContactPhone: "",
     department: "",
-    specialization: "",
     workType: "full_time",
     employmentStartDate: "",
     salary: "",
@@ -85,6 +55,12 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
     }
     return () => document.body.classList.remove("modal-open");
   }, [isOpen]);
+
+  useEffect(() => {
+    if (departmentOptions.length > 0 && !departmentOptions.includes(formData.department)) {
+      setFormData((prev) => ({ ...prev, department: departmentOptions[0] }));
+    }
+  }, [departmentOptions, formData.department]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -174,7 +150,7 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
         phone: formData.phone,
         password: "TempPass@123",
         specialty: formData.department,
-        qualification: formData.specialization || formData.department,
+        qualification: formData.department,
         registrationNumber: formData.licenseNumber || `DR-${Date.now()}`,
         experience: 1,
         consultationFee: 500,
@@ -200,7 +176,6 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
         emergencyContactName: "",
         emergencyContactPhone: "",
         department: "",
-        specialization: "",
         workType: "full_time",
         employmentStartDate: "",
         salary: "",
@@ -230,8 +205,6 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
   };
 
   if (!isOpen) return null;
-
-  const specializations = SPECIALIZATIONS[formData.department] || [];
 
   // Time Select Component
   const TimeSelect = ({ value, onChange, disabled, options }) => (
@@ -489,22 +462,8 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
                   className={errors.department ? 'error' : ''}
                 >
                   <option value="">Select Department</option>
-                  {DEPARTMENTS.map(dept => (
+                  {departmentOptions.map(dept => (
                     <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Specialization</label>
-                <select
-                  name="specialization"
-                  value={formData.specialization}
-                  onChange={handleChange}
-                  disabled={!formData.department}
-                >
-                  <option value="">Select Specialization</option>
-                  {specializations.map(spec => (
-                    <option key={spec} value={spec}>{spec}</option>
                   ))}
                 </select>
               </div>

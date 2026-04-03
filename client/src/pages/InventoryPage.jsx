@@ -3,16 +3,46 @@ import { Eye, Edit2, Trash2 } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import MediFlowDataTable from "../components/DataTable";
 import toast from "react-hot-toast";
+import { useHospitalSettings } from "../hooks";
 import {
   inventoryActivities,
-  inventoryCategories,
   inventoryOverviewCards,
   inventoryRows as initialInventoryRows,
   inventoryTrendBars,
 } from "../data/navigation";
 
+const CATEGORY_TONES = ["striped", "soft", "mint", "light", "dark"];
+
 function InventoryPage() {
+  const { inventoryCategories } = useHospitalSettings();
   const [inventoryData, setInventoryData] = useState(initialInventoryRows);
+
+  const normalizedInventoryData = useMemo(() => {
+    if (!inventoryCategories.length) {
+      return inventoryData;
+    }
+
+    return inventoryData.map((item, index) => ({
+      ...item,
+      category: inventoryCategories[index % inventoryCategories.length],
+    }));
+  }, [inventoryCategories, inventoryData]);
+
+  const categoryBreakdown = useMemo(() => {
+    const totalItems = normalizedInventoryData.length || 1;
+
+    return inventoryCategories.map((category, index) => {
+      const count = normalizedInventoryData.filter((item) => item.category === category).length;
+      const percent = Math.round((count / totalItems) * 100);
+
+      return {
+        label: category,
+        value: `${percent}%`,
+        count: String(count),
+        tone: CATEGORY_TONES[index % CATEGORY_TONES.length],
+      };
+    });
+  }, [inventoryCategories, normalizedInventoryData]);
 
   // Handle bulk delete
   const handleBulkDelete = (selectedRows) => {
@@ -145,7 +175,7 @@ function InventoryPage() {
   const tableTitle = (
     <div className="datatable-title">
       <h2>Inventory</h2>
-      <p>{inventoryData.length} items</p>
+      <p>{normalizedInventoryData.length} items</p>
     </div>
   );
 
@@ -213,12 +243,12 @@ function InventoryPage() {
               </button>
             </div>
             <div className="inventory-category-bars" aria-hidden="true">
-              {inventoryCategories.map((item) => (
+              {categoryBreakdown.map((item) => (
                 <span className={`inventory-category-bar inventory-category-bar--${item.tone}`} key={item.label} />
               ))}
             </div>
             <div className="inventory-category-list">
-              {inventoryCategories.map((item) => (
+              {categoryBreakdown.map((item) => (
                 <article className="inventory-category-item" key={item.label}>
                   <strong>{item.label}</strong>
                   <div>
@@ -236,7 +266,7 @@ function InventoryPage() {
             <MediFlowDataTable
               title={tableTitle}
               columns={tableColumns}
-              data={inventoryData}
+              data={normalizedInventoryData}
               selectableRows={true}
               onBulkDelete={handleBulkDelete}
               searchable={true}

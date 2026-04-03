@@ -14,6 +14,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     doctorId,
     date,
     slotTime,
+    appointmentType,
     triageData,
     chatSessionId,
     bookingSource = 'web_chat'
@@ -56,6 +57,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     date: new Date(date),
     slotTime,
     slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+    appointmentType: appointmentType || 'Consultation',
     status: 'booked',
     bookingSource,
     triageData,
@@ -376,6 +378,7 @@ router.post('/:id/reschedule', protect, asyncHandler(async (req, res) => {
     hospitalId: oldAppointment.hospitalId,
     date: new Date(newDate),
     slotTime: newSlotTime,
+    appointmentType: oldAppointment.appointmentType || 'Consultation',
     status: 'booked',
     bookingSource: 'reschedule',
     triageData: oldAppointment.triageData,
@@ -628,6 +631,7 @@ router.post('/manual', protect, asyncHandler(async (req, res) => {
     date: new Date(date),
     slotTime,
     slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+    appointmentType: appointmentType || 'Consultation',
     status: 'booked',
     bookingSource: 'manual',
     triageData: {

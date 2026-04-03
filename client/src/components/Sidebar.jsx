@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ActivitySquare,
   CalendarDays,
@@ -8,8 +9,10 @@ import {
   Stethoscope,
   Users,
   Package,
+  Settings,
   Menu,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -27,6 +30,7 @@ const navIcons = {
   Patients: Users,
   Queue: CalendarDays,
   Inventory: Package,
+  Settings: Settings,
 };
 
 // Navigation items by role
@@ -42,6 +46,7 @@ const getNavigationItems = (role) => {
       { label: "Departments", shortLabel: "DP", path: "/departments" },
       { label: "Calendar", shortLabel: "CL", path: "/calendar" },
       { label: "Inventory", shortLabel: "IN", path: "/inventory" },
+      { label: "Settings", shortLabel: "ST", path: "/settings" },
     ];
   }
 
@@ -63,16 +68,26 @@ const getNavigationItems = (role) => {
 function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const userName = user?.name || "City Hospital Admin";
   const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=2A9D8F&color=fff`;
 
   const navigationItems = getNavigationItems(user?.role);
 
-  const handleSignOut = () => {
+  const handleSignOutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
     toast.success("Logged out successfully");
     navigate("/login");
+  };
+
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   return (
@@ -136,16 +151,6 @@ function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
 
 
 
-      {/* Doctor Info */}
-      {user?.role === 'doctor' && (
-        <div className="sidebar-upgrade">
-          <div className="upgrade-illustration">
-            <span>Care</span>
-          </div>
-          <h3>Queue Management</h3>
-          <p>Manage your patient queue and consultations.</p>
-        </div>
-      )}
 
       <div className="sidebar-footer">
         {user && (
@@ -162,11 +167,32 @@ function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
           </div>
         )}
 
-        <button className="sign-out" type="button" onClick={handleSignOut} style={{ width: '100%' }}>
+        <button className="sign-out" type="button" onClick={handleSignOutClick} style={{ width: '100%' }}>
           <LogOut size={15} strokeWidth={2} />
           Sign Out
         </button>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="logout-confirm-overlay" onClick={handleCancelLogout}>
+          <div className="logout-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="logout-confirm-icon">
+              <AlertTriangle size={32} strokeWidth={1.5} />
+            </div>
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to sign out of your account?</p>
+            <div className="logout-confirm-actions">
+              <button className="logout-cancel-btn" type="button" onClick={handleCancelLogout}>
+                Cancel
+              </button>
+              <button className="logout-confirm-btn" type="button" onClick={handleConfirmLogout}>
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

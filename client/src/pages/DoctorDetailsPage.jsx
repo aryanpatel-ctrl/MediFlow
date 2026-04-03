@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
+import MediFlowDataTable from "../components/DataTable";
 import api from "../services/api";
 
 function DoctorDetailsPage() {
@@ -12,6 +14,8 @@ function DoctorDetailsPage() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [patientSearch, setPatientSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState("latest");
 
   useEffect(() => {
     if (doctorId) {
@@ -109,6 +113,75 @@ function DoctorDetailsPage() {
     if (!status) return "Scheduled";
     return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
+
+  const filteredAppointments = useMemo(() => {
+    const searchValue = patientSearch.trim().toLowerCase();
+
+    const matchesSearch = appointments.filter((appointment) => {
+      if (!searchValue) return true;
+
+      const patientName = appointment.patientId?.name || "";
+      const patientPhone = appointment.patientId?.phone || "";
+      const appointmentType = appointment.appointmentType || "Consultation";
+
+      return [patientName, patientPhone, appointmentType].some((value) =>
+        value.toLowerCase().includes(searchValue),
+      );
+    });
+
+    return [...matchesSearch].sort((left, right) => {
+      const leftDate = new Date(left.date).getTime();
+      const rightDate = new Date(right.date).getTime();
+
+      return sortOrder === "latest" ? rightDate - leftDate : leftDate - rightDate;
+    });
+  }, [appointments, patientSearch, sortOrder]);
+
+  const patientTableColumns = useMemo(
+    () => [
+      {
+        name: "Name",
+        selector: (row) => row.patientId?.name || "Patient",
+        sortable: true,
+        cell: (row) => (
+          <div className="table-user-cell">
+            <span className="table-avatar">{getInitials(row.patientId?.name)}</span>
+            <div className="table-user-info">
+              <span className="table-user-name">{row.patientId?.name || "Patient"}</span>
+              <span className="table-user-email">{row.patientId?.phone || "--"}</span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        name: "Appointment Date",
+        selector: (row) => new Date(row.date).getTime(),
+        sortable: true,
+        cell: (row) => formatDate(row.date),
+      },
+      {
+        name: "Time",
+        selector: (row) => row.slotTime || "--",
+        sortable: true,
+      },
+      {
+        name: "Type",
+        selector: (row) => row.appointmentType || "Consultation",
+        sortable: true,
+      },
+      {
+        name: "Status",
+        selector: (row) => row.status || "scheduled",
+        sortable: true,
+        cell: (row) => (
+          <span className={`status-pill patient-status patient-status--${getStatusClass(row.status)}`}>
+            {getStatusLabel(row.status)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   // Calculate stats
   const totalPatients = appointments.length;
@@ -210,7 +283,7 @@ function DoctorDetailsPage() {
                   <span>{doctorCode}</span>
                   <div className="doctor-profile-meta">
                     <div>
-                      <small>Specialty</small>
+                      <small>Department</small>
                       <strong>{doctor.specialty || "General"}</strong>
                     </div>
                     <div>
@@ -330,60 +403,41 @@ function DoctorDetailsPage() {
               <div className="panel-header">
                 <h2>Patients ({appointments.length})</h2>
                 <div className="doctor-table-actions">
-                  <label className="doctor-search">
-                    <input type="search" placeholder="Search patients" />
+                  <label className="datatable-search doctor-search">
+                    <Search size={18} className="search-icon" />
+                    <input
+                      className="search-input"
+                      type="search"
+                      placeholder="Search patients"
+                      value={patientSearch}
+                      onChange={(event) => setPatientSearch(event.target.value)}
+                    />
                   </label>
-                  <button className="doctor-action ghost" type="button">Sort by: Latest</button>
+                  <button
+                    className="doctor-action ghost"
+                    type="button"
+                    onClick={() => setSortOrder((currentValue) => (currentValue === "latest" ? "oldest" : "latest"))}
+                  >
+                    Sort by: {sortOrder === "latest" ? "Latest" : "Oldest"}
+                  </button>
                 </div>
               </div>
               <div className="table-wrap">
-                {appointments.length > 0 ? (
-                  <table className="doctor-patients-table">
-                    <thead>
-                      <tr>
-                        <th />
-                        <th>Name</th>
-                        <th>Appointment Date</th>
-                        <th>Time</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appointments.slice(0, 10).map((apt) => (
-                        <tr key={apt._id}>
-                          <td><span className="table-check" aria-hidden="true" /></td>
-                          <td>
-                            <div
-                              className="table-person table-person-clickable"
-                              onClick={() => navigate(`/patients/${apt.patientId?._id}`)}
-                            >
-                              <span className="table-avatar">
-                                {getInitials(apt.patientId?.name)}
-                              </span>
-                              <div>
-                                <strong>{apt.patientId?.name || "Patient"}</strong>
-                                <p>{apt.patientId?.phone || "--"}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td>{formatDate(apt.date)}</td>
-                          <td>{apt.slotTime || "--"}</td>
-                          <td>{apt.appointmentType || "Consultation"}</td>
-                          <td>
-                            <span className={`status-pill patient-status patient-status--${getStatusClass(apt.status)}`}>
-                              {getStatusLabel(apt.status)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="empty-state" style={{ padding: "2rem", textAlign: "center" }}>
-                    <p style={{ color: "#6b7280" }}>No appointments found for this doctor</p>
-                  </div>
-                )}
+                <MediFlowDataTable
+                  className="doctor-patients-datatable"
+                  columns={patientTableColumns}
+                  data={filteredAppointments.slice(0, 10)}
+                  loading={false}
+                  searchable={false}
+                  pagination={false}
+                  noDataMessage="No appointments found for this doctor"
+                  onRowClicked={(row) => {
+                    const patientId = row.patientId?._id || row.patientId;
+                    if (patientId) {
+                      navigate(`/patients/${patientId}`);
+                    }
+                  }}
+                />
               </div>
             </article>
           </div>

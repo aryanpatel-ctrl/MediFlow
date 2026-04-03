@@ -1,13 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
-
-const APPOINTMENT_TYPES = [
-  { value: "consultation", label: "Consultation" },
-  { value: "follow-up", label: "Follow-up" },
-  { value: "walk-in", label: "Walk-in" },
-  { value: "telemedicine", label: "Telemedicine" },
-];
+import { useHospitalSettings } from "../hooks";
 
 const URGENCY_LEVELS = [
   { value: 1, label: "Routine", color: "#10b981" },
@@ -18,6 +12,7 @@ const URGENCY_LEVELS = [
 ];
 
 function AddAppointmentModal({ isOpen, onClose, onSuccess, hospitalId }) {
+  const { appointmentTypes } = useHospitalSettings(hospitalId);
   // Patient state
   const [patientSearch, setPatientSearch] = useState("");
   const [patients, setPatients] = useState([]);
@@ -44,7 +39,7 @@ function AddAppointmentModal({ isOpen, onClose, onSuccess, hospitalId }) {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState("");
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [appointmentType, setAppointmentType] = useState("consultation");
+  const [appointmentType, setAppointmentType] = useState("");
   const [urgencyScore, setUrgencyScore] = useState(3);
   const [notes, setNotes] = useState("");
 
@@ -89,6 +84,12 @@ function AddAppointmentModal({ isOpen, onClose, onSuccess, hospitalId }) {
       fetchAvailableSlots();
     }
   }, [selectedDoctor, selectedDate]);
+
+  useEffect(() => {
+    if (!appointmentType && appointmentTypes.length > 0) {
+      setAppointmentType(appointmentTypes[0]);
+    }
+  }, [appointmentType, appointmentTypes]);
 
   const fetchDoctors = async () => {
     setLoadingDoctors(true);
@@ -204,7 +205,7 @@ function AddAppointmentModal({ isOpen, onClose, onSuccess, hospitalId }) {
     setSelectedDate("");
     setSelectedSlot("");
     setAvailableSlots([]);
-    setAppointmentType("consultation");
+    setAppointmentType(appointmentTypes[0] || "");
     setUrgencyScore(3);
     setNotes("");
     setShowNewPatientForm(false);
@@ -399,16 +400,16 @@ function AddAppointmentModal({ isOpen, onClose, onSuccess, hospitalId }) {
           <div className="form-section">
             <label className="form-label">Appointment Type</label>
             <div className="radio-group">
-              {APPOINTMENT_TYPES.map((type) => (
-                <label key={type.value} className="radio-label">
+              {appointmentTypes.map((type) => (
+                <label key={type} className="radio-label">
                   <input
                     type="radio"
                     name="appointmentType"
-                    value={type.value}
-                    checked={appointmentType === type.value}
+                    value={type}
+                    checked={appointmentType === type}
                     onChange={(e) => setAppointmentType(e.target.value)}
                   />
-                  <span>{type.label}</span>
+                  <span>{type}</span>
                 </label>
               ))}
             </div>
