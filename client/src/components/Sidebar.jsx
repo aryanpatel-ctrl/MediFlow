@@ -6,7 +6,10 @@ import { useAuth } from "../hooks";
 const getNavigationItems = (role) => {
   if (role === 'super_admin') {
     return [
-      { label: "Dashboard", shortLabel: "SA", path: "/super-admin" },
+      { label: "Dashboard", shortLabel: "DB", path: "/super-admin" },
+      { label: "Hospitals", shortLabel: "HP", path: "/super-admin/hospitals" },
+      { label: "Add Hospital", shortLabel: "AH", path: "/super-admin/onboard" },
+      { label: "Analytics", shortLabel: "AN", path: "/super-admin/analytics" },
     ];
   }
 

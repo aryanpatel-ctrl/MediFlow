@@ -4,7 +4,14 @@ require('dotenv').config({ path: '../.env' });
 
 const { User, Doctor, Hospital } = require('../models');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://alphabeta:alphabeta@cluster0.kpiwnau.mongodb.net/medqueue?retryWrites=true&w=majority&appName=Cluster0';
+// MONGODB_URI is required from environment variables
+if (!process.env.MONGODB_URI) {
+  console.error('ERROR: MONGODB_URI is not set in environment variables');
+  console.error('Please set MONGODB_URI in your .env file');
+  process.exit(1);
+}
+
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const doctors = [
   {

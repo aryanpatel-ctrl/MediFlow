@@ -9302,3 +9302,2128 @@ td {
     gap: 1rem;
   }
 }
+
+/* ============================================
+   SUPER ADMIN DASHBOARD - NEW STYLES
+   ============================================ */
+
+/* Super Admin Pages - General Layout */
+.super-admin-dashboard,
+.hospitals-list-page,
+.hospital-onboarding-page,
+.hospital-detail-page,
+.sa-analytics-page {
+  padding: 0;
+}
+
+/* Page Actions Row */
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-actions.space-between {
+  justify-content: space-between;
+}
+
+.page-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-secondary-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.btn-secondary-link:hover {
+  color: var(--accent);
+}
+
+.status-badge-lg {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-badge-lg.active {
+  background: #e8f8f0;
+  color: #27ae60;
+}
+
+.status-badge-lg.inactive {
+  background: #fce8e8;
+  color: #eb5757;
+}
+
+/* SA Header Row - Just the button */
+.sa-header-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+/* SA Stats Grid */
+.sa-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.sa-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+}
+
+.sa-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.sa-stat-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.sa-stat-icon.hospitals { background: #e8f4f8; color: #2d9cdb; }
+.sa-stat-icon.active { background: #e8f8f0; color: #27ae60; }
+.sa-stat-icon.doctors { background: #f0e8f8; color: #9b59b6; }
+.sa-stat-icon.patients { background: #fef3e8; color: #f39c12; }
+.sa-stat-icon.google { background: #fce8e8; color: #eb5757; }
+.sa-stat-icon.pending { background: #fff8e8; color: #f2994a; }
+
+.sa-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sa-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.sa-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+/* SA Section */
+.sa-section {
+  margin-bottom: 2rem;
+}
+
+.sa-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: var(--text-dark);
+}
+
+.sa-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.sa-view-all {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sa-view-all:hover {
+  text-decoration: underline;
+}
+
+/* SA Quick Actions */
+.sa-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.sa-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.sa-action-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.sa-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  margin-bottom: 1rem;
+}
+
+.sa-action-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.sa-action-icon.add { background: #e8f4f8; color: #2d9cdb; }
+.sa-action-icon.view { background: #e8f8f0; color: #27ae60; }
+.sa-action-icon.analytics { background: #f0e8f8; color: #9b59b6; }
+
+.sa-action-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-dark);
+}
+
+.sa-action-card p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  text-align: center;
+}
+
+/* SA Hospitals Grid */
+.sa-hospitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.sa-hospital-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.sa-hospital-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sa-hospital-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sa-hospital-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sa-hospital-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sa-hospital-info h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-hospital-info p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+
+.sa-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sa-status-badge.active {
+  background: #e8f8f0;
+  color: #27ae60;
+}
+
+.sa-status-badge.inactive {
+  background: #fce8e8;
+  color: #eb5757;
+}
+
+.sa-hospital-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sa-hospital-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.sa-hospital-stat .stat-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.sa-hospital-stat .stat-label {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+}
+
+.sa-hospital-stat .google-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #eb5757;
+}
+
+.sa-hospital-stat .google-status.connected {
+  color: #27ae60;
+}
+
+.sa-hospital-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+}
+
+.sa-hospital-type {
+  padding: 0.25rem 0.5rem;
+  background: #f5f7fa;
+  border-radius: 6px;
+  color: var(--text-soft);
+  text-transform: capitalize;
+}
+
+.sa-hospital-email {
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* SA Empty State */
+.sa-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.sa-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #f5f7fa;
+  color: var(--text-soft);
+  margin-bottom: 1rem;
+}
+
+.sa-empty-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.sa-empty-state h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-dark);
+}
+
+.sa-empty-state p {
+  margin: 0.5rem 0 1rem;
+  color: var(--text-soft);
+}
+
+/* ============================================
+   HOSPITALS LIST PAGE
+   ============================================ */
+
+.hospitals-list-page {
+  padding: 1.5rem;
+}
+
+.hospitals-list-page.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.hlp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.hlp-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.hlp-header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+/* HLP Filters */
+.hlp-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.hlp-search {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 280px;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.hlp-search svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.hlp-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.hlp-filter-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.hlp-filter-group select {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.hlp-results-info {
+  margin-bottom: 1rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+/* HLP Hospitals Grid */
+.hlp-hospitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.hlp-hospital-card {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.hlp-hospital-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.hlp-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+.hlp-hospital-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.hlp-hospital-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.hlp-hospital-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-dark);
+}
+
+.hlp-hospital-location {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.hlp-status-badge {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.hlp-status-badge.active {
+  background: #e8f8f0;
+  color: #27ae60;
+}
+
+.hlp-status-badge.inactive {
+  background: #fce8e8;
+  color: #eb5757;
+}
+
+.hlp-card-body {
+  padding: 0 1.25rem 1rem;
+}
+
+.hlp-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f5f7fa;
+}
+
+.hlp-info-row:last-child {
+  border-bottom: none;
+}
+
+.hlp-label {
+  color: var(--text-soft);
+}
+
+.hlp-value {
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.hlp-card-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 1rem 1.25rem;
+  background: #f9fafb;
+  border-top: 1px solid var(--border);
+}
+
+.hlp-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hlp-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.hlp-stat-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hlp-stat-icon.doctors { background: #e8f4f8; color: #2d9cdb; }
+.hlp-stat-icon.patients { background: #fef3e8; color: #f39c12; }
+.hlp-stat-icon.google { background: #f5f7fa; color: #9ca3af; }
+.hlp-stat-icon.google.connected { background: #e8f8f0; color: #27ae60; }
+
+.hlp-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.hlp-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.hlp-stat-value.connected { color: #27ae60; }
+.hlp-stat-value.not-connected { color: #9ca3af; }
+
+.hlp-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+}
+
+.hlp-card-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.hlp-view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.hlp-view-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.hlp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.hlp-empty-state h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.hlp-empty-state p {
+  margin: 0.5rem 0 1.5rem;
+  color: var(--text-soft);
+}
+
+/* ============================================
+   HOSPITAL ONBOARDING PAGE
+   ============================================ */
+
+.hospital-onboarding-page {
+  padding: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.hop-header {
+  margin-bottom: 2rem;
+}
+
+.hop-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.hop-back-link:hover {
+  color: var(--accent);
+}
+
+.hop-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.hop-header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-soft);
+}
+
+/* HOP Progress */
+.hop-progress {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.hop-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+  flex: 1;
+}
+
+.hop-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f5f7fa;
+  color: var(--text-soft);
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.hop-step-number svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hop-step.active .hop-step-number {
+  background: var(--accent);
+  color: white;
+}
+
+.hop-step.completed .hop-step-number {
+  background: #27ae60;
+  color: white;
+}
+
+.hop-step-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hop-step-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  white-space: nowrap;
+}
+
+.hop-step.active .hop-step-title {
+  color: var(--accent);
+}
+
+.hop-step.completed .hop-step-title {
+  color: #27ae60;
+}
+
+.hop-step-desc {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.hop-step-line {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+  margin: 0 1rem;
+}
+
+.hop-step.completed + .hop-step-line,
+.hop-step.completed .hop-step-line {
+  background: #27ae60;
+}
+
+/* HOP Form Container */
+.hop-form-container {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 2rem;
+}
+
+.hop-form-step h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.hop-form-step > p {
+  margin: 0 0 1.5rem;
+  color: var(--text-soft);
+}
+
+.hop-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.hop-form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.hop-form-group input,
+.hop-form-group select,
+.hop-form-group textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.hop-form-group input:focus,
+.hop-form-group select:focus,
+.hop-form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hop-form-group input.error,
+.hop-form-group select.error {
+  border-color: #eb5757;
+}
+
+.hop-form-group .error-text {
+  display: block;
+  margin-top: 0.25rem;
+  color: #eb5757;
+  font-size: 0.75rem;
+}
+
+.hop-form-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.hop-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* HOP Specialties */
+.hop-specialties-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hop-specialty-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hop-specialty-chip input {
+  display: none;
+}
+
+.hop-specialty-chip:hover {
+  border-color: var(--accent);
+}
+
+.hop-specialty-chip.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* HOP Info Box */
+.hop-info-box {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f0f9ff;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.hop-info-box svg {
+  width: 24px;
+  height: 24px;
+  color: #2d9cdb;
+  flex-shrink: 0;
+}
+
+.hop-info-box p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #1e6a8a;
+  line-height: 1.5;
+}
+
+/* HOP Review */
+.hop-review-section {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.hop-review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.hop-review-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.hop-edit-btn {
+  padding: 0.25rem 0.75rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hop-edit-btn:hover {
+  border-color: var(--accent);
+}
+
+.hop-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.hop-review-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hop-review-item.full-width {
+  grid-column: span 2;
+}
+
+.hop-review-item .label {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.hop-review-item .value {
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.hop-confirm-box {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f0fdf4;
+  border-radius: 12px;
+  margin-top: 1.5rem;
+}
+
+.hop-confirm-box svg {
+  width: 24px;
+  height: 24px;
+  color: #27ae60;
+  flex-shrink: 0;
+}
+
+.hop-confirm-box p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #166534;
+  line-height: 1.5;
+}
+
+/* HOP Form Actions */
+.hop-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.hop-spacer {
+  flex: 1;
+}
+
+.hop-form-actions .btn-secondary,
+.hop-form-actions .btn-primary,
+.hop-form-actions .btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hop-form-actions .btn-secondary {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--text-dark);
+}
+
+.hop-form-actions .btn-secondary:hover {
+  border-color: var(--accent);
+}
+
+.hop-form-actions .btn-primary {
+  background: var(--accent);
+  border: none;
+  color: white;
+}
+
+.hop-form-actions .btn-primary:hover {
+  background: var(--accent-strong);
+}
+
+.hop-form-actions .btn-success {
+  background: #27ae60;
+  border: none;
+  color: white;
+}
+
+.hop-form-actions .btn-success:hover {
+  background: #219a52;
+}
+
+.hop-form-actions .btn-success:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ============================================
+   HOSPITAL DETAIL PAGE
+   ============================================ */
+
+.hospital-detail-page {
+  padding: 1.5rem;
+}
+
+.hospital-detail-page.loading,
+.hospital-detail-page.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+}
+
+.hdp-header {
+  margin-bottom: 1.5rem;
+}
+
+.hdp-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.hdp-back-link:hover {
+  color: var(--accent);
+}
+
+.hdp-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.hdp-hospital-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hdp-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.hdp-hospital-info h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.hdp-hospital-info p {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.hdp-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hdp-status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.hdp-status-badge.active {
+  background: #e8f8f0;
+  color: #27ae60;
+}
+
+.hdp-status-badge.inactive {
+  background: #fce8e8;
+  color: #eb5757;
+}
+
+.btn-outline {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-outline.danger {
+  background: white;
+  border: 1px solid #eb5757;
+  color: #eb5757;
+}
+
+.btn-outline.danger:hover {
+  background: #eb5757;
+  color: white;
+}
+
+.btn-outline.success {
+  background: white;
+  border: 1px solid #27ae60;
+  color: #27ae60;
+}
+
+.btn-outline.success:hover {
+  background: #27ae60;
+  color: white;
+}
+
+/* HDP Stats Row */
+.hdp-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.hdp-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.hdp-stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.hdp-stat-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.hdp-stat-icon.doctors { background: #e8f4f8; color: #2d9cdb; }
+.hdp-stat-icon.patients { background: #fef3e8; color: #f39c12; }
+.hdp-stat-icon.appointments { background: #f0e8f8; color: #9b59b6; }
+.hdp-stat-icon.google { background: #f5f7fa; color: #9ca3af; }
+.hdp-stat-icon.google.connected { background: #e8f8f0; color: #27ae60; }
+
+.hdp-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.hdp-stat-value.connected { color: #27ae60; }
+.hdp-stat-value.not-connected { color: #9ca3af; font-size: 0.9rem; }
+
+.hdp-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+/* HDP Tabs */
+.hdp-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.hdp-tab {
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: -1px;
+}
+
+.hdp-tab:hover {
+  color: var(--text-dark);
+}
+
+.hdp-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* HDP Content */
+.hdp-content {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+}
+
+/* HDP Overview */
+.hdp-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.hdp-info-card {
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.hdp-info-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: var(--text-dark);
+}
+
+.hdp-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hdp-info-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hdp-info-item .label {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.hdp-info-item .value {
+  color: var(--text-dark);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.hdp-info-item .value.link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.hdp-info-item .value.success { color: #27ae60; }
+.hdp-info-item .value.warning { color: #f39c12; }
+.capitalize { text-transform: capitalize; }
+
+.hdp-specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hdp-specialty-tag {
+  padding: 0.35rem 0.75rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-dark);
+}
+
+.hdp-no-data {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.hdp-description {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.hdp-description h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.hdp-description p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+/* HDP Doctors */
+.hdp-doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.hdp-doctor-card {
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.hdp-doctor-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.hdp-doctor-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.hdp-doctor-info {
+  flex: 1;
+}
+
+.hdp-doctor-info h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.hdp-doctor-info p {
+  margin: 0.15rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.hdp-doctor-status {
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.hdp-doctor-status.active {
+  background: #e8f8f0;
+  color: #27ae60;
+}
+
+.hdp-doctor-status.inactive {
+  background: #fce8e8;
+  color: #eb5757;
+}
+
+.hdp-doctor-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.hdp-doctor-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.hdp-doctor-detail .label {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+}
+
+.hdp-doctor-detail .value {
+  font-size: 0.8rem;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.hdp-doctor-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.hdp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.hdp-empty-state svg {
+  color: var(--text-soft);
+  margin-bottom: 1rem;
+}
+
+.hdp-empty-state h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.hdp-empty-state p {
+  margin: 0.5rem 0 0;
+  color: var(--text-soft);
+}
+
+/* HDP Settings */
+.hdp-settings-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hdp-settings-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.hdp-settings-section h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.hdp-settings-section > p {
+  margin: 0 0 1rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.hdp-setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 10px;
+}
+
+.hdp-setting-item strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.hdp-setting-item p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.hdp-setting-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #fce8e8;
+  color: #eb5757;
+}
+
+.hdp-setting-badge.connected {
+  background: #e8f8f0;
+  color: #27ae60;
+}
+
+.hdp-settings-section.danger h3 {
+  color: #eb5757;
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  background: #eb5757;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   SUPER ADMIN ANALYTICS PAGE
+   ============================================ */
+
+.sa-analytics-page {
+  padding: 1.5rem;
+}
+
+.sa-analytics-page.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.sap-header {
+  margin-bottom: 2rem;
+}
+
+.sap-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.sap-header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-soft);
+}
+
+/* SAP Overview Stats */
+.sap-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.sap-stat-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 16px;
+  color: white;
+}
+
+.sap-stat-card.primary { background: linear-gradient(135deg, #2d9cdb, #1a7fb8); }
+.sap-stat-card.success { background: linear-gradient(135deg, #27ae60, #1e8449); }
+.sap-stat-card.info { background: linear-gradient(135deg, #9b59b6, #7d4098); }
+.sap-stat-card.warning { background: linear-gradient(135deg, #f39c12, #d68910); }
+
+.sap-stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.sap-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.sap-stat-label {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.sap-stat-icon {
+  opacity: 0.3;
+}
+
+.sap-stat-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+/* SAP Charts Grid */
+.sap-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.sap-chart-card {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+}
+
+.sap-chart-card.wide {
+  grid-column: span 2;
+}
+
+.sap-chart-card h3 {
+  margin: 0 0 1.5rem;
+  font-size: 1rem;
+}
+
+/* SAP Donut Chart */
+.sap-donut-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.sap-donut {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.sap-donut-segment {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(
+    #27ae60 0% calc(var(--percentage) * 1%),
+    #e5e7eb calc(var(--percentage) * 1%) 100%
+  );
+}
+
+.sap-donut-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.sap-donut-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.sap-donut-label {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+}
+
+.sap-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sap-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-dark);
+}
+
+.sap-legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.sap-legend-color.active { background: #27ae60; }
+.sap-legend-color.inactive { background: #e5e7eb; }
+
+/* SAP Bar Chart */
+.sap-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sap-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sap-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.sap-bar-label span:first-child {
+  color: var(--text-dark);
+}
+
+.sap-bar-label span:last-child {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.sap-bar-track {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sap-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.sap-no-data {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* SAP Specialties Chart */
+.sap-specialties-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sap-specialty-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sap-specialty-info {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sap-specialty-name {
+  font-size: 0.85rem;
+  color: var(--text-dark);
+}
+
+.sap-specialty-count {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.sap-specialty-track {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.sap-specialty-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #9b59b6, #8e44ad);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* SAP Integration Section */
+.sap-integration-section {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.sap-integration-section h3 {
+  margin: 0 0 1.5rem;
+  font-size: 1rem;
+}
+
+.sap-integration-stats {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.sap-integration-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  min-width: 180px;
+}
+
+.sap-integration-card.connected {
+  background: #e8f8f0;
+}
+
+.sap-integration-card.not-connected {
+  background: #fce8e8;
+}
+
+.sap-integration-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: white;
+}
+
+.sap-integration-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sap-integration-card.connected .sap-integration-icon {
+  color: #27ae60;
+}
+
+.sap-integration-card.not-connected .sap-integration-icon {
+  color: #eb5757;
+}
+
+.sap-integration-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sap-integration-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.sap-integration-card.connected .sap-integration-value {
+  color: #27ae60;
+}
+
+.sap-integration-card.not-connected .sap-integration-value {
+  color: #eb5757;
+}
+
+.sap-integration-label {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.sap-integration-progress {
+  flex: 1;
+  min-width: 200px;
+  padding: 1rem 1.5rem;
+  background: #f9fafb;
+  border-radius: 12px;
+}
+
+.sap-progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.sap-progress-label span:first-child {
+  color: var(--text-soft);
+}
+
+.sap-progress-label span:last-child {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.sap-progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sap-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #27ae60, #1e8449);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* SAP Quick Links */
+.sap-quick-links {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+}
+
+.sap-quick-links h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.sap-links-grid {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sap-link-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: #f9fafb;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-dark);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sap-link-card:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.sap-link-card svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .sa-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sa-quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-hospitals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hlp-filters {
+    flex-direction: column;
+  }
+
+  .hlp-search {
+    min-width: auto;
+  }
+
+  .hlp-hospitals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hop-progress {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .hop-step-line {
+    display: none;
+  }
+
+  .hop-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hop-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hop-review-item.full-width {
+    grid-column: span 1;
+  }
+
+  .hdp-header-content {
+    flex-direction: column;
+  }
+
+  .hdp-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hdp-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sap-overview-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sap-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sap-chart-card.wide {
+    grid-column: span 1;
+  }
+
+  .sap-donut-container {
+    flex-direction: column;
+  }
+
+  .sap-integration-stats {
+    flex-direction: column;
+  }
+}

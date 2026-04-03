@@ -22,6 +22,10 @@ import DoctorOnboarding from "./pages/DoctorOnboarding";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import HospitalsListPage from "./pages/HospitalsListPage";
+import HospitalOnboardingPage from "./pages/HospitalOnboardingPage";
+import HospitalDetailPage from "./pages/HospitalDetailPage";
+import SuperAdminAnalyticsPage from "./pages/SuperAdminAnalyticsPage";
 import HospitalSettings from "./pages/HospitalSettings";
 
 // Protected Route Component
@@ -64,6 +68,38 @@ function App() {
         element={
           <ProtectedRoute>
             <SuperAdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/hospitals"
+        element={
+          <ProtectedRoute>
+            <HospitalsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/hospitals/:id"
+        element={
+          <ProtectedRoute>
+            <HospitalDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/onboard"
+        element={
+          <ProtectedRoute>
+            <HospitalOnboardingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/super-admin/analytics"
+        element={
+          <ProtectedRoute>
+            <SuperAdminAnalyticsPage />
           </ProtectedRoute>
         }
       />

@@ -3,12 +3,19 @@
  * Run: node scripts/seedSuperAdmin.js
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/../.env' });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// MONGODB_URI is required from environment variables
+if (!process.env.MONGODB_URI) {
+  console.error('ERROR: MONGODB_URI is not set in environment variables');
+  console.error('Please set MONGODB_URI in your .env file');
+  process.exit(1);
+}
+
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/medqueue')
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => {
     console.error('MongoDB connection error:', err);
