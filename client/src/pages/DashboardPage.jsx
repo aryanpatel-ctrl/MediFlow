@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import MetricCard from "../components/MetricCard";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
@@ -19,9 +19,10 @@ function DashboardPage() {
   const [doctors, setDoctors] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [hospitalInfo, setHospitalInfo] = useState(null);
+  const [patientAppointments, setPatientAppointments] = useState([]);
 
   useEffect(() => {
-    // Redirect based on user role
+    // Only redirect super_admin and doctor - they have dedicated dashboards
     if (user?.role === 'super_admin') {
       navigate('/super-admin');
       return;
@@ -30,15 +31,18 @@ function DashboardPage() {
       navigate('/doctor/dashboard');
       return;
     }
-    if (user?.role === 'patient') {
-      navigate('/chat');
-      return;
-    }
 
-    fetchDashboardData();
+    // For hospital_admin and patient, fetch appropriate data
+    if (user?.role === 'hospital_admin') {
+      fetchHospitalAdminData();
+    } else if (user?.role === 'patient') {
+      fetchPatientData();
+    } else {
+      setLoading(false);
+    }
   }, [user, navigate]);
 
-  const fetchDashboardData = async () => {
+  const fetchHospitalAdminData = async () => {
     try {
       const hospitalId = user?.hospitalId?._id || user?.hospitalId;
 
@@ -47,14 +51,12 @@ function DashboardPage() {
         return;
       }
 
-      // Fetch hospital stats, doctors, and appointments in parallel
       const [statsRes, doctorsRes, hospitalRes] = await Promise.all([
         api.get(`/hospitals/${hospitalId}/stats`),
         api.get(`/hospitals/${hospitalId}/doctors`),
         api.get(`/hospitals/${hospitalId}`)
       ]);
 
-      // Set stats
       if (statsRes.data.stats) {
         const apptStats = statsRes.data.stats.appointments || {};
         setStats({
@@ -67,7 +69,6 @@ function DashboardPage() {
         });
       }
 
-      // Set doctors with status
       if (doctorsRes.data.doctors) {
         const doctorsWithStatus = doctorsRes.data.doctors.map(doc => ({
           ...doc,
@@ -78,15 +79,13 @@ function DashboardPage() {
         setDoctors(doctorsWithStatus);
       }
 
-      // Set hospital info
       if (hospitalRes.data.hospital) {
         setHospitalInfo(hospitalRes.data.hospital);
       }
 
-      // Fetch today's appointments for the table
+      // Fetch today's appointments
       try {
         const today = new Date().toISOString().split('T')[0];
-        // Get appointments from all doctors
         const allAppointments = [];
         for (const doc of doctorsRes.data.doctors?.slice(0, 5) || []) {
           const apptRes = await api.get(`/doctors/${doc._id}/appointments`, {
@@ -112,26 +111,17 @@ function DashboardPage() {
     }
   };
 
-  const statCards = [
-    {
-      label: "Today's Appointments",
-      value: stats.totalAppointments.toString(),
-      delta: `${stats.completed} completed`,
-      icon: "AP",
-    },
-    {
-      label: "Total Doctors",
-      value: stats.totalDoctors?.toString() || doctors.length.toString(),
-      delta: `${doctors.filter(d => d.status === 'Available').length} available`,
-      icon: "DR",
-    },
-    {
-      label: "Pending",
-      value: stats.pending.toString(),
-      delta: "Awaiting consultation",
-      icon: "PN",
-    },
-  ];
+  const fetchPatientData = async () => {
+    try {
+      // Fetch patient's appointments
+      const res = await api.get('/appointments/my');
+      setPatientAppointments(res.data.appointments || []);
+    } catch (error) {
+      console.error('Failed to fetch patient data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusClass = (status) => {
     switch (status?.toLowerCase()) {
@@ -155,6 +145,172 @@ function DashboardPage() {
       </AppLayout>
     );
   }
+
+  // Patient Dashboard
+  if (user?.role === 'patient') {
+    const upcomingAppointments = patientAppointments.filter(a =>
+      a.status === 'booked' || a.status === 'confirmed' || a.status === 'checked_in'
+    );
+    const completedAppointments = patientAppointments.filter(a => a.status === 'completed');
+
+    return (
+      <AppLayout title="Dashboard" subtitle={`Welcome back, ${user?.name || 'Patient'}`}>
+        <main className="patient-dashboard">
+          {/* Quick Stats */}
+          <div className="patient-stats-grid">
+            <div className="patient-stat-card">
+              <div className="patient-stat-icon upcoming">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div className="patient-stat-info">
+                <span className="patient-stat-value">{upcomingAppointments.length}</span>
+                <span className="patient-stat-label">Upcoming Appointments</span>
+              </div>
+            </div>
+
+            <div className="patient-stat-card">
+              <div className="patient-stat-icon completed">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                  <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+              </div>
+              <div className="patient-stat-info">
+                <span className="patient-stat-value">{completedAppointments.length}</span>
+                <span className="patient-stat-label">Completed Visits</span>
+              </div>
+            </div>
+
+            <div className="patient-stat-card">
+              <div className="patient-stat-icon total">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+              </div>
+              <div className="patient-stat-info">
+                <span className="patient-stat-value">{patientAppointments.length}</span>
+                <span className="patient-stat-label">Total Appointments</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="patient-actions-section">
+            <h2>Quick Actions</h2>
+            <div className="patient-actions-grid">
+              <Link to="/chat" className="patient-action-card primary">
+                <div className="patient-action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                </div>
+                <div className="patient-action-content">
+                  <h3>Book Appointment</h3>
+                  <p>Chat with AI to describe symptoms and book with the right doctor</p>
+                </div>
+                <svg className="patient-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12,5 19,12 12,19"/>
+                </svg>
+              </Link>
+
+              <Link to="/my-appointments" className="patient-action-card">
+                <div className="patient-action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                </div>
+                <div className="patient-action-content">
+                  <h3>My Appointments</h3>
+                  <p>View and manage all your scheduled appointments</p>
+                </div>
+                <svg className="patient-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12,5 19,12 12,19"/>
+                </svg>
+              </Link>
+            </div>
+          </div>
+
+          {/* Upcoming Appointments */}
+          <div className="patient-appointments-section">
+            <div className="section-header">
+              <h2>Upcoming Appointments</h2>
+              <Link to="/my-appointments" className="view-all-link">View All</Link>
+            </div>
+
+            {upcomingAppointments.length > 0 ? (
+              <div className="patient-appointments-list">
+                {upcomingAppointments.slice(0, 3).map(appt => (
+                  <div key={appt._id} className="patient-appointment-card">
+                    <div className="appt-date-badge">
+                      <span className="appt-day">{new Date(appt.date).getDate()}</span>
+                      <span className="appt-month">{new Date(appt.date).toLocaleString('default', { month: 'short' })}</span>
+                    </div>
+                    <div className="appt-details">
+                      <h4>{appt.doctorId?.userId?.name || 'Doctor'}</h4>
+                      <p>{appt.doctorId?.specialty || 'Specialist'}</p>
+                      <span className="appt-time">{appt.slotTime}</span>
+                    </div>
+                    <span className={`status-pill status-${getStatusClass(appt.status)}`}>
+                      {appt.status?.replace('_', ' ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="patient-empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <h3>No Upcoming Appointments</h3>
+                <p>Book your first appointment with our AI assistant</p>
+                <Link to="/chat" className="btn-primary">
+                  Book Now
+                </Link>
+              </div>
+            )}
+          </div>
+        </main>
+      </AppLayout>
+    );
+  }
+
+  // Hospital Admin Dashboard
+  const statCards = [
+    {
+      label: "Today's Appointments",
+      value: stats.totalAppointments.toString(),
+      delta: `${stats.completed} completed`,
+      icon: "AP",
+    },
+    {
+      label: "Total Doctors",
+      value: stats.totalDoctors?.toString() || doctors.length.toString(),
+      delta: `${doctors.filter(d => d.status === 'Available').length} available`,
+      icon: "DR",
+    },
+    {
+      label: "Pending",
+      value: stats.pending.toString(),
+      delta: "Awaiting consultation",
+      icon: "PN",
+    },
+  ];
 
   return (
     <AppLayout

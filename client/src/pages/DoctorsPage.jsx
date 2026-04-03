@@ -4,21 +4,20 @@ import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
 
-const SPECIALTIES = [
-  "All",
+const SPECIALTY_PRIORITY = [
   "General Medicine",
-  "Cardiology",
-  "Neurology",
-  "Orthopedics",
   "Pediatrics",
-  "Gynecology",
+  "Cardiology",
+  "Orthopedics",
   "Dermatology",
+  "Neurology",
   "ENT",
   "Ophthalmology",
   "Gastroenterology",
   "Pulmonology",
   "Psychiatry",
-  "Emergency"
+  "Gynecology",
+  "Emergency",
 ];
 
 const PORTRAIT_TONES = ['peach', 'mint', 'sky', 'sand', 'rose', 'slate', 'blush', 'stone', 'lilac', 'cream'];
@@ -39,21 +38,17 @@ function DoctorsPage() {
     try {
       const hospitalId = user?.hospitalId?._id || user?.hospitalId;
 
-      let url = '/doctors';
-      if (hospitalId) {
-        url = `/hospitals/${hospitalId}/doctors`;
-      }
-
-      const res = await api.get(url);
+      const res = await api.get('/doctors', {
+        params: hospitalId ? { hospitalId } : undefined
+      });
       const doctorsList = res.data.doctors || [];
 
-      // Add display properties
       const enrichedDoctors = doctorsList.map((doc, index) => ({
         ...doc,
         name: doc.userId?.name || 'Doctor',
         email: doc.userId?.email || '',
         phone: doc.userId?.phone || '',
-        status: doc.isAcceptingPatients ? 'Available' : 'Unavailable',
+        status: doc.isAcceptingPatients !== false ? 'Available' : 'Unavailable',
         portraitTone: PORTRAIT_TONES[index % PORTRAIT_TONES.length],
         schedule: formatSchedule(doc.availability)
       }));
@@ -69,16 +64,48 @@ function DoctorsPage() {
   const formatSchedule = (availability) => {
     if (!availability || typeof availability !== 'object') return 'Schedule not set';
 
-    const days = Object.entries(availability)
-      .filter(([_, val]) => val?.isAvailable)
-      .map(([day]) => day.charAt(0).toUpperCase() + day.slice(1, 3));
+    const dayLabels = {
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+      sunday: "Sunday",
+    };
 
-    if (days.length === 0) return 'No availability';
-    if (days.length === 7) return 'Mon - Sun';
-    if (days.length >= 5) return 'Mon - Fri';
+    const activeDays = Object.entries(availability)
+      .filter(([_, value]) => value?.isAvailable && value?.slots?.length)
+      .map(([day, value]) => ({
+        label: dayLabels[day] || day,
+        slots: value.slots,
+      }));
 
-    return days.join(', ');
+    if (activeDays.length === 0) {
+      return 'No availability';
+    }
+
+    const firstDay = activeDays[0];
+    const lastDay = activeDays[activeDays.length - 1];
+    const firstSlot = firstDay.slots[0];
+    const lastSlot = firstDay.slots[firstDay.slots.length - 1];
+    const timeRange = firstSlot?.startTime && lastSlot?.endTime
+      ? `${firstSlot.startTime} - ${lastSlot.endTime}`
+      : 'Schedule not set';
+
+    if (activeDays.length === 1) {
+      return `${firstDay.label} | ${timeRange}`;
+    }
+
+    return `${firstDay.label} - ${lastDay.label} | ${timeRange}`;
   };
+
+  const specialtyTabs = [
+    "All",
+    ...SPECIALTY_PRIORITY.filter((specialty) =>
+      doctors.some((doctor) => doctor.specialty === specialty)
+    )
+  ];
 
   const filteredDoctors = doctors.filter(doc => {
     const matchesSpecialty = activeTab === "All" || doc.specialty === activeTab;
@@ -104,12 +131,12 @@ function DoctorsPage() {
   }
 
   return (
-    <AppLayout title="Doctors" subtitle="Browse specialists and manage doctor profiles">
+    <AppLayout title="Doctors" subtitle="Browse specialists and manage patient assignments">
       <main className="doctors-page">
         <section className="panel doctors-directory-card">
           <div className="doctors-toolbar">
             <div className="doctor-tabs" aria-label="Doctor categories">
-              {SPECIALTIES.slice(0, 8).map((tab) => (
+              {specialtyTabs.map((tab) => (
                 <button
                   className={`doctor-tab${activeTab === tab ? " is-active" : ""}`}
                   type="button"
@@ -170,23 +197,19 @@ function DoctorsPage() {
                   <div className="doctor-card__info">
                     <strong>{doctor.specialty}</strong>
                     <p>{doctor.schedule}</p>
-                    <p className="doctor-meta">
-                      {doctor.experience} yrs exp | Rs. {doctor.consultationFee}
-                    </p>
                   </div>
 
                   <div className="doctor-card__footer">
-                    <div className="doctor-rating">
-                      {doctor.rating?.average > 0 && (
-                        <span>Rating: {doctor.rating.average}/5</span>
-                      )}
+                    <div className="doctor-contact-icons" aria-hidden="true">
+                      <span className="doctor-contact-icon" />
+                      <span className="doctor-contact-icon" />
                     </div>
                     <button
                       className="assign-button"
                       type="button"
                       onClick={() => navigate(`/doctors/details?id=${doctor._id}`)}
                     >
-                      View Details
+                      Assign Patient
                     </button>
                   </div>
                 </article>

@@ -1,6 +1,24 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
+const normalizeUser = (user) => {
+  if (!user) {
+    return user;
+  }
+
+  const normalizedId = user._id || user.id;
+
+  if (!normalizedId) {
+    return user;
+  }
+
+  return {
+    ...user,
+    _id: normalizedId,
+    id: normalizedId,
+  };
+};
+
 // Async Thunks
 export const login = createAsyncThunk(
   'auth/login',
@@ -116,7 +134,7 @@ const authSlice = createSlice({
       if (token) {
         localStorage.setItem('token', token);
       }
-      state.user = user;
+      state.user = normalizeUser(user);
       state.isAuthenticated = true;
       state.loading = false;
     },
@@ -130,7 +148,7 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        state.user = normalizeUser(action.payload);
         state.isAuthenticated = true;
       })
       .addCase(login.rejected, (state, action) => {
@@ -144,7 +162,7 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        state.user = normalizeUser(action.payload);
         state.isAuthenticated = true;
       })
       .addCase(register.rejected, (state, action) => {
@@ -157,7 +175,7 @@ const authSlice = createSlice({
       })
       .addCase(loadUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        state.user = normalizeUser(action.payload);
         state.isAuthenticated = !!action.payload;
       })
       .addCase(loadUser.rejected, (state) => {
@@ -167,7 +185,7 @@ const authSlice = createSlice({
       })
       // Update Profile
       .addCase(updateProfile.fulfilled, (state, action) => {
-        state.user = action.payload;
+        state.user = normalizeUser(action.payload);
       })
       // Send OTP
       .addCase(sendOTP.fulfilled, (state) => {

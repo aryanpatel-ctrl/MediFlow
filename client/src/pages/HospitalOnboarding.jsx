@@ -196,7 +196,10 @@ function HospitalOnboarding() {
       if (response.data.success) {
         // Store auth credentials
         dispatch(setCredentials({
-          user: response.data.admin,
+          user: {
+            ...response.data.admin,
+            hospitalId: response.data.hospital?._id
+          },
           token: response.data.token
         }));
 
@@ -217,7 +220,7 @@ function HospitalOnboarding() {
           }
         }
 
-        navigate('/dashboard');
+        navigate('/', { replace: true });
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');

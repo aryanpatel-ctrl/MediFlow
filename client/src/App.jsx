@@ -32,7 +32,7 @@ import HospitalSettings from "./pages/HospitalSettings";
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
-  if (loading === 'checkAuth') {
+  if (loading) {
     return (
       <div className="loading-screen">
         <div className="loading-spinner"></div>

@@ -17,10 +17,10 @@ const getNavigationItems = (role) => {
     return [
       { label: "Dashboard", shortLabel: "DB", path: "/" },
       { label: "Appointments", shortLabel: "AP", path: "/appointments" },
-      { label: "Doctors", shortLabel: "DR", path: "/doctors" },
       { label: "Patients", shortLabel: "PT", path: "/patients" },
-      { label: "Add Doctor", shortLabel: "AD", path: "/doctors/add" },
-      { label: "Settings", shortLabel: "ST", path: "/settings" },
+      { label: "Doctors", shortLabel: "DR", path: "/doctors" },
+      { label: "Departments", shortLabel: "DP", path: "/departments" },
+      { label: "Calendar", shortLabel: "CL", path: "/calendar" },
     ];
   }
 
@@ -113,7 +113,7 @@ function Sidebar() {
             <span>H</span>
           </div>
           <h3>Hospital Admin</h3>
-          <p>Manage doctors, view appointments, and monitor queue.</p>
+          <p>Manage appointments, patients, doctors, departments, and queue.</p>
           <NavLink to="/settings" style={{ textDecoration: "none" }}>
             <button type="button">Settings</button>
           </NavLink>

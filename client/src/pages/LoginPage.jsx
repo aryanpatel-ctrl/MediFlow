@@ -7,14 +7,15 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loading, error, isAuthenticated, clearAuthError } = useAuth();
+  const { login, loading, error, user, isAuthenticated, clearAuthError } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // Redirect all authenticated users to dashboard
+    if (isAuthenticated && user) {
       navigate("/");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
     if (error) {
@@ -28,6 +29,7 @@ function LoginPage() {
     const result = await login(email, password);
     if (!result.error) {
       toast.success("Login successful!");
+      // Navigation will happen via useEffect when user state updates
     }
   };
 
@@ -104,7 +106,7 @@ function LoginPage() {
             </div>
 
             <button className="signup-submit" type="submit" disabled={loading}>
-              {loading === 'login' ? "Signing in..." : "Login"}
+              {loading ? "Signing in..." : "Login"}
             </button>
 
             <p className="signup-login-link">
