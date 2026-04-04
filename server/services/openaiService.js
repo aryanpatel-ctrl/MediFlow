@@ -10,7 +10,7 @@ const openai = new OpenAI({
  */
 function generateGreeting(patientContext, patientHistory) {
   if (!patientContext) {
-    return "Hello! I'm MedQueue AI, your healthcare assistant. I'm here to understand your symptoms and help you book an appointment with the right specialist. How can I help you today?";
+    return "Hello! I'm MediFlow, your healthcare assistant. I'm here to understand your symptoms and help you book an appointment with the right specialist. How can I help you today?";
   }
 
   const { name, age, gender } = patientContext;
@@ -27,7 +27,7 @@ function generateGreeting(patientContext, patientHistory) {
     return `Hello ${firstName}! Good to see you again. How can I help you today?`;
   }
 
-  return `Hello ${firstName}! I'm MedQueue AI, your healthcare assistant. I'm here to understand your symptoms and connect you with the right specialist. Please tell me what's bothering you today.`;
+  return `Hello ${firstName}! I'm MediFlow, your healthcare assistant. I'm here to understand your symptoms and connect you with the right specialist. Please tell me what's bothering you today.`;
 }
 
 /**

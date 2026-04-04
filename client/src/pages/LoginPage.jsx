@@ -33,10 +33,17 @@ function LoginPage() {
     }
   };
 
+  // Auto-fill demo credentials
+  const fillCredentials = (demoEmail, demoPassword) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    toast.success("Credentials filled! Click Login to continue.");
+  };
+
   return (
     <main className="signup-page login-page">
       <section className="signup-promo login-promo">
-        <div className="signup-brand">MedQueue AI</div>
+        <div className="signup-brand">MediFlow</div>
         <div className="signup-promo__copy">
           <h1>Smart Healthcare Scheduling</h1>
           <p>AI-powered triage, real-time queue tracking, and intelligent appointment management for modern hospitals.</p>
@@ -61,7 +68,7 @@ function LoginPage() {
       <section className="signup-form-panel">
         <div className="signup-form-card">
           <div className="signup-form-card__head">
-            <h2>Welcome Back to MedQueue</h2>
+            <h2>Welcome Back to MediFlow</h2>
             <p>Sign in to manage appointments, track queues, and access AI-powered healthcare tools.</p>
           </div>
 
@@ -110,16 +117,31 @@ function LoginPage() {
             </button>
 
             <p className="signup-login-link">
-              New to MedQueue? <a href="/signup">Create an account</a>
+              New to MediFlow? <a href="/signup">Create an account</a>
             </p>
           </form>
 
-          {/* Demo Credentials */}
+          {/* Demo Credentials - Clickable */}
           <div className="demo-credentials">
             <p><strong>Demo Credentials:</strong></p>
-            <p>Patient: rahul@example.com / patient123</p>
-            <p>Doctor: dr.rajesh@cityhospital.com / doctor123</p>
-            <p>Admin: cityhospital@medqueue.ai / hospital123</p>
+            <p
+              className="demo-credential-item"
+              onClick={() => fillCredentials("rahul@example.com", "patient123")}
+            >
+              Patient: rahul@example.com / patient123
+            </p>
+            <p
+              className="demo-credential-item"
+              onClick={() => fillCredentials("dr.rajesh@cityhospital.com", "doctor123")}
+            >
+              Doctor: dr.rajesh@cityhospital.com / doctor123
+            </p>
+            <p
+              className="demo-credential-item"
+              onClick={() => fillCredentials("cityhospital@mediflow.ai", "hospital123")}
+            >
+              Admin: cityhospital@mediflow.ai / hospital123
+            </p>
           </div>
         </div>
       </section>

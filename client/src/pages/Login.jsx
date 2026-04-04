@@ -44,7 +44,7 @@ export default function Login() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Welcome Back</h1>
-          <p className="text-gray-600 mt-2">Login to your MedQueue account</p>
+          <p className="text-gray-600 mt-2">Login to your MediFlow account</p>
         </div>
 
         <div className="card">
@@ -115,7 +115,7 @@ export default function Login() {
           <div className="text-xs text-gray-600 space-y-1">
             <p><strong>Patient:</strong> rahul@example.com / patient123</p>
             <p><strong>Doctor:</strong> dr.rajesh@cityhospital.com / doctor123</p>
-            <p><strong>Admin:</strong> cityhospital@medqueue.ai / hospital123</p>
+            <p><strong>Admin:</strong> cityhospital@mediflow.ai / hospital123</p>
           </div>
         </div>
       </div>

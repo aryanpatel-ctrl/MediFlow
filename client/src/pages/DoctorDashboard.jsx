@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import AppLayout from '../layouts/AppLayout';
 import { useAuth } from '../hooks';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
 function DoctorDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [doctor, setDoctor] = useState(null);
   const [queue, setQueue] = useState(null);
   const [appointments, setAppointments] = useState([]);
@@ -101,19 +104,23 @@ function DoctorDashboard() {
 
   if (loading) {
     return (
-      <div className="doctor-dashboard loading">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
-      </div>
+      <AppLayout title="Doctor Dashboard" subtitle="Loading...">
+        <div className="loading-screen">
+          <div className="loading-spinner"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </AppLayout>
     );
   }
 
   if (!doctor) {
     return (
-      <div className="doctor-dashboard error">
-        <h2>Doctor Profile Not Found</h2>
-        <p>Please contact admin to set up your profile.</p>
-      </div>
+      <AppLayout title="Doctor Dashboard" subtitle="Setup Required">
+        <div className="empty-state" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <h2>Doctor Profile Not Found</h2>
+          <p style={{ color: '#6b7280', marginTop: '10px' }}>Please contact admin to set up your profile.</p>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -122,30 +129,28 @@ function DoctorDashboard() {
   const completedCount = queue?.entries?.filter(e => e.status === 'completed')?.length || 0;
 
   return (
-    <div className="doctor-dashboard">
-      {/* Header */}
-      <div className="dashboard-header">
-        <div className="header-info">
-          <h1>Welcome, {user?.name}</h1>
-          <p>{doctor.specialty} | Today: {new Date().toLocaleDateString()}</p>
-        </div>
-        <div className="header-stats">
-          <div className="stat">
+    <AppLayout
+      title={`Welcome, Dr. ${user?.name?.split(' ').pop() || user?.name}`}
+      subtitle={`${doctor.specialty} | Today: ${new Date().toLocaleDateString()}`}
+    >
+      <main className="doctor-dashboard">
+        {/* Stats Header */}
+        <div className="doctor-stats-row">
+          <div className="doctor-stat-card">
             <span className="stat-value">{appointments.length}</span>
             <span className="stat-label">Appointments</span>
           </div>
-          <div className="stat">
+          <div className="doctor-stat-card">
             <span className="stat-value">{completedCount}</span>
             <span className="stat-label">Completed</span>
           </div>
-          <div className="stat">
+          <div className="doctor-stat-card">
             <span className="stat-value">{waitingPatients.length}</span>
             <span className="stat-label">Waiting</span>
           </div>
         </div>
-      </div>
 
-      <div className="dashboard-content">
+        <div className="dashboard-content">
         {/* Current Patient */}
         <div className="current-patient-section">
           <div className="section-header">
@@ -199,6 +204,12 @@ function DoctorDashboard() {
               )}
 
               <div className="patient-actions">
+                <button
+                  className="btn-primary"
+                  onClick={() => navigate(`/prescription?patientId=${currentPatient.patientId?._id || currentPatient.patientId}&appointmentId=${currentPatient.appointmentId?._id || currentPatient.appointmentId}`)}
+                >
+                  Write Prescription
+                </button>
                 <button
                   className="btn-success"
                   onClick={markComplete}
@@ -285,8 +296,9 @@ function DoctorDashboard() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+        </div>
+      </main>
+    </AppLayout>
   );
 }
 

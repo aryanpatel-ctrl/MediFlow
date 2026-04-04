@@ -26,6 +26,8 @@ router.post('/onboard', asyncHandler(async (req, res) => {
     operatingHours,
     emergency24x7,
     specialties,
+    appointmentTypes,
+    inventoryCategories,
     // Step 3: Configuration
     defaultSlotDuration,
     maxPatientsPerSlot,
@@ -82,6 +84,8 @@ router.post('/onboard', asyncHandler(async (req, res) => {
     },
     emergency24x7: emergency24x7 || false,
     specialties: specialties || ['General Medicine'],
+    appointmentTypes: appointmentTypes || ['Consultation', 'Follow-up', 'Surgery', 'Telemedicine'],
+    inventoryCategories: inventoryCategories || ['Medicines', 'Equipment', 'Supplies'],
     defaultSlotDuration: defaultSlotDuration || 15,
     maxPatientsPerSlot: maxPatientsPerSlot || 1,
     queueSettings: queueSettings || {},
@@ -153,7 +157,9 @@ router.put('/:id/onboard/step', protect, asyncHandler(async (req, res) => {
       Object.assign(hospital, {
         operatingHours: data.operatingHours,
         emergency24x7: data.emergency24x7,
-        specialties: data.specialties
+        specialties: data.specialties,
+        appointmentTypes: data.appointmentTypes,
+        inventoryCategories: data.inventoryCategories
       });
       break;
     case 3: // Configuration
@@ -429,7 +435,8 @@ router.put('/:id', protect, authorize('hospital_admin'), asyncHandler(async (req
   }
 
   const allowedFields = [
-    'name', 'type', 'phone', 'website', 'address', 'specialties', 'operatingHours',
+    'name', 'type', 'phone', 'website', 'address', 'specialties', 'appointmentTypes',
+    'inventoryCategories', 'operatingHours',
     'defaultSlotDuration', 'maxPatientsPerSlot', 'queueSettings', 'features',
     'logo', 'primaryColor', 'emergency24x7', 'emergencySlotsPerDoctor'
   ];

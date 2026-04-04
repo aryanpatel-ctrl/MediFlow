@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Plus, Calendar, Clock, MapPin, Users, X, ChevronLeft, ChevronRight } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
@@ -26,6 +27,11 @@ const getStatusTone = (status) => {
   }
 };
 
+const getCategoryColor = (index) => {
+  const colors = ["teal", "mint", "light"];
+  return colors[index % colors.length];
+};
+
 function CalendarPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -35,6 +41,8 @@ function CalendarPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
+  const [viewMode, setViewMode] = useState("month"); // month, week, day
+  const [showDetailsPanel, setShowDetailsPanel] = useState(true);
 
   useEffect(() => {
     fetchCalendarAppointments();
@@ -141,14 +149,14 @@ function CalendarPage() {
     const dayAppointments = appointmentMap[key] || [];
     const events = dayAppointments.slice(0, 2).map((appointment) => ({
       title: appointment.patientId?.name || "Patient",
-      time: `${appointment.slotTime || "--"} • ${appointment.doctorName}`,
+      time: `${appointment.slotTime || "--"} - ${appointment.slotEndTime || "--"}`,
       tone: getStatusTone(appointment.status),
     }));
 
     if (dayAppointments.length > 2) {
       events.push({
         title: `+${dayAppointments.length - 2} more`,
-        time: "appointments",
+        time: "",
         tone: "light",
       });
     }
@@ -158,6 +166,7 @@ function CalendarPage() {
       muted: cursor.getMonth() !== currentMonth.getMonth(),
       key,
       events,
+      isToday: toDateKey(cursor) === toDateKey(new Date()),
     });
 
     cursor.setDate(cursor.getDate() + 1);
@@ -168,18 +177,24 @@ function CalendarPage() {
     : appointments.slice(0, 3);
 
   const selectedDateLabel = selectedDate
-    ? new Date(selectedDate).toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
+    ? "Schedule Details"
     : "Upcoming Schedule Details";
 
-  const calendarSummary = [
-    { title: "Today's Appointments", count: `${todayAppointments.length} Schedules` },
-    { title: "Next 7 Days", count: `${upcomingWeekAppointments.length} Schedules` },
-    { title: "Queue Ready", count: `${activeQueueAppointments.length} Schedules` },
-  ];
+  // Group appointments by category (doctor specialty)
+  const categoryGroups = appointments.reduce((acc, apt) => {
+    const category = apt.doctorSpecialty || "General";
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(apt);
+    return acc;
+  }, {});
+
+  const calendarCategories = Object.entries(categoryGroups).map(([name, items], index) => ({
+    name,
+    count: items.length,
+    color: getCategoryColor(index),
+  }));
 
   const previousMonth = () =>
     setCurrentMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1));
@@ -206,58 +221,113 @@ function CalendarPage() {
 
   return (
     <AppLayout title="Calendar" subtitle="Manage department schedules and agenda blocks">
-      <main className="calendar-page">
-        <section className="panel calendar-shell">
-          <div className="calendar-toolbar">
-            <div className="calendar-toolbar__title">
-              <h2>{monthLabel}</h2>
-              <span aria-hidden="true">⌄</span>
+      <main className="calendar-page-v2">
+        <section className="panel calendar-shell-v2">
+          {/* Calendar Toolbar */}
+          <div className="calendar-toolbar-v2">
+            <div className="calendar-toolbar-v2__left">
+              <button className="calendar-nav-btn" onClick={previousMonth} aria-label="Previous month">
+                <ChevronLeft size={18} />
+              </button>
+              <h2 className="calendar-month-title">{monthLabel}</h2>
+              <button className="calendar-nav-btn" onClick={nextMonthView} aria-label="Next month">
+                <ChevronRight size={18} />
+              </button>
             </div>
-            <div className="calendar-toolbar__actions">
-              <div className="calendar-view-switch">
-                <button type="button" onClick={previousMonth}>Prev</button>
-                <button type="button" className="is-active">Month</button>
-                <button type="button" onClick={nextMonthView}>Next</button>
+            <div className="calendar-toolbar-v2__right">
+              <div className="calendar-view-toggle">
+                <button
+                  type="button"
+                  className={viewMode === "month" ? "is-active" : ""}
+                  onClick={() => setViewMode("month")}
+                >
+                  Month
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "week" ? "is-active" : ""}
+                  onClick={() => setViewMode("week")}
+                >
+                  Week
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "day" ? "is-active" : ""}
+                  onClick={() => setViewMode("day")}
+                >
+                  Day
+                </button>
               </div>
-              <button className="calendar-add-button" type="button" onClick={jumpToToday}>Today</button>
+              <button className="calendar-new-agenda-btn" type="button" onClick={jumpToToday}>
+                <Plus size={16} />
+                <span>Go to Today</span>
+              </button>
             </div>
           </div>
 
-          <div className="calendar-layout">
-            <aside className="calendar-summary">
-              <small>Total All Schedules</small>
-              <strong>{appointments.length}</strong>
-              <div className="calendar-summary-list">
-                {calendarSummary.map((item, index) => (
-                  <article className={`calendar-summary-item calendar-summary-item--${index + 1}`} key={item.title}>
-                    <strong>{item.title}</strong>
-                    <span>{item.count}</span>
-                  </article>
-                ))}
+          {/* Calendar Layout */}
+          <div className={`calendar-layout-v2 ${!showDetailsPanel ? 'no-details' : ''}`}>
+            {/* Left Sidebar - Categories */}
+            <aside className="calendar-sidebar-v2">
+              <div className="calendar-total-schedules">
+                <span className="calendar-total-label">Total All Schedules</span>
+                <strong className="calendar-total-count">{appointments.length}</strong>
+              </div>
+
+              <div className="calendar-categories">
+                {calendarCategories.length > 0 ? (
+                  calendarCategories.map((category, index) => (
+                    <div className={`calendar-category calendar-category--${category.color}`} key={category.name}>
+                      <strong>{category.name}</strong>
+                      <span>{category.count} Schedules</span>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="calendar-category calendar-category--teal">
+                      <strong>Today's Appointments</strong>
+                      <span>{todayAppointments.length} Schedules</span>
+                    </div>
+                    <div className="calendar-category calendar-category--mint">
+                      <strong>Next 7 Days</strong>
+                      <span>{upcomingWeekAppointments.length} Schedules</span>
+                    </div>
+                    <div className="calendar-category calendar-category--light">
+                      <strong>Queue Ready</strong>
+                      <span>{activeQueueAppointments.length} Schedules</span>
+                    </div>
+                  </>
+                )}
               </div>
             </aside>
 
-            <section className="calendar-board">
-              <div className="calendar-grid calendar-grid--head">
+            {/* Calendar Grid */}
+            <section className="calendar-main-v2">
+              <div className="calendar-grid-v2 calendar-grid-v2--head">
                 {weekdays.map((day) => (
-                  <div className="calendar-weekday" key={day}>{day}</div>
+                  <div className="calendar-weekday-v2" key={day}>{day}</div>
                 ))}
               </div>
 
-              <div className="calendar-grid calendar-grid--body">
+              <div className="calendar-grid-v2 calendar-grid-v2--body">
                 {calendarDays.map((cell, index) => (
                   <article
-                    className={`calendar-cell${cell.muted ? " is-muted" : ""}${cell.key === selectedDate ? " is-selected" : ""}`}
+                    className={`calendar-cell-v2${cell.muted ? " is-muted" : ""}${cell.key === selectedDate ? " is-selected" : ""}${cell.isToday ? " is-today" : ""}`}
                     key={`${cell.key}-${index}`}
-                    onClick={() => setSelectedDate(cell.key)}
+                    onClick={() => {
+                      setSelectedDate(cell.key);
+                      setShowDetailsPanel(true);
+                    }}
                   >
-                    <span className="calendar-cell__weekday">{weekdays[index % 7]}</span>
-                    <span className="calendar-date">{cell.day}</span>
-                    <div className="calendar-events">
-                      {cell.events.map((event) => (
-                        <div className={`calendar-event calendar-event--${event.tone}`} key={`${cell.key}-${event.title}-${event.time}`}>
+                    <span className="calendar-date-v2">{cell.day}</span>
+                    <div className="calendar-events-v2">
+                      {cell.events.map((event, eventIndex) => (
+                        <div
+                          className={`calendar-event-v2 calendar-event-v2--${event.tone}`}
+                          key={`${cell.key}-${eventIndex}`}
+                        >
                           <strong>{event.title}</strong>
-                          <small>{event.time}</small>
+                          {event.time && <small>{event.time}</small>}
                         </div>
                       ))}
                     </div>
@@ -266,68 +336,90 @@ function CalendarPage() {
               </div>
             </section>
 
-            <aside className="calendar-details">
-              <div className="calendar-details__head">
-                <h3>{selectedDateLabel}</h3>
-                <button type="button" aria-label="Close details" onClick={() => setSelectedDate(null)}>×</button>
-              </div>
+            {/* Right Panel - Schedule Details */}
+            {showDetailsPanel && (
+              <aside className="calendar-details-v2">
+                <div className="calendar-details-v2__header">
+                  <h3>{selectedDateLabel}</h3>
+                  <button
+                    type="button"
+                    className="calendar-details-close"
+                    onClick={() => setShowDetailsPanel(false)}
+                    aria-label="Close details"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
 
-              <div className="calendar-detail-list">
-                {selectedAppointments.length > 0 ? (
-                  selectedAppointments.map((appointment) => (
-                    <article
-                      className={`calendar-detail-card calendar-detail-card--${getStatusTone(appointment.status) === "soft" ? "soft" : "teal"}`}
-                      key={appointment._id}
-                    >
-                      <h4>{appointment.patientId?.name || "Patient"} with {appointment.doctorName}</h4>
-                      <ul>
-                        <li className="calendar-detail-meta calendar-detail-meta--date">
-                          {new Date(appointment.date).toLocaleDateString("en-US", {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </li>
-                        <li className="calendar-detail-meta calendar-detail-meta--time">
-                          {appointment.slotTime}{appointment.slotEndTime ? ` - ${appointment.slotEndTime}` : ""}
-                        </li>
-                        <li className="calendar-detail-meta calendar-detail-meta--location">
-                          {appointment.doctorSpecialty}
-                        </li>
-                        <li className="calendar-detail-meta calendar-detail-meta--participants">
-                          {appointment.patientId?.phone || "No patient phone"} | {appointment.status?.replace("_", " ") || "booked"}
-                        </li>
-                      </ul>
-                      <div className="calendar-detail-team">
-                        <small>Doctor</small>
-                        <div className="calendar-detail-person">
-                          <span className="table-avatar">
-                            {appointment.doctorName.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-                          </span>
-                          <div>
-                            <strong>{appointment.doctorName}</strong>
-                            <p>{appointment.doctorSpecialty}</p>
+                <div className="calendar-details-v2__list">
+                  {selectedAppointments.length > 0 ? (
+                    selectedAppointments.map((appointment, index) => (
+                      <article
+                        className={`calendar-detail-card-v2 calendar-detail-card-v2--${index % 2 === 0 ? 'teal' : 'soft'}`}
+                        key={appointment._id}
+                      >
+                        <h4>{appointment.patientId?.name || "Patient"} with {appointment.doctorName}</h4>
+
+                        <ul className="calendar-detail-meta-list">
+                          <li className="calendar-detail-meta-v2">
+                            <Calendar size={14} />
+                            <span>
+                              {new Date(appointment.date).toLocaleDateString("en-US", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </li>
+                          <li className="calendar-detail-meta-v2">
+                            <Clock size={14} />
+                            <span>
+                              {appointment.slotTime}{appointment.slotEndTime ? ` - ${appointment.slotEndTime}` : ""}
+                            </span>
+                          </li>
+                          <li className="calendar-detail-meta-v2">
+                            <MapPin size={14} />
+                            <span>{appointment.doctorSpecialty}</span>
+                          </li>
+                          <li className="calendar-detail-meta-v2">
+                            <Users size={14} />
+                            <span>{appointment.status?.replace("_", " ") || "booked"}</span>
+                          </li>
+                        </ul>
+
+                        <div className="calendar-detail-team-v2">
+                          <small>Team</small>
+                          <div className="calendar-detail-person-v2">
+                            <span className="calendar-detail-avatar">
+                              {appointment.doctorName.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                            </span>
+                            <div>
+                              <strong>{appointment.doctorName}</strong>
+                              <p>{appointment.doctorSpecialty}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="calendar-detail-note">
-                        <small>Note</small>
-                        <p>
-                          {appointment.triageData?.preVisitSummary
-                            || (appointment.queueNumber
-                              ? `Queue number #${appointment.queueNumber} for this appointment.`
-                              : "No additional queue note for this appointment.")}
-                        </p>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <div className="empty-state">
-                    <p>No appointments scheduled for this day.</p>
-                  </div>
-                )}
-              </div>
-            </aside>
+
+                        <div className="calendar-detail-note-v2">
+                          <small>Note</small>
+                          <p>
+                            {appointment.triageData?.preVisitSummary
+                              || (appointment.queueNumber
+                                ? `Queue number #${appointment.queueNumber} for this appointment.`
+                                : "No additional note for this appointment.")}
+                          </p>
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="calendar-empty-state">
+                      <Calendar size={40} strokeWidth={1.5} />
+                      <p>No appointments scheduled for this day.</p>
+                    </div>
+                  )}
+                </div>
+              </aside>
+            )}
           </div>
         </section>
       </main>

@@ -288,6 +288,7 @@ async function addWalkIn(doctorId, patientId, triageData) {
     hospitalId: doctor.hospitalId,
     date: today,
     slotTime: new Date().toTimeString().slice(0, 5),
+    appointmentType: 'Walk-in',
     status: 'checked_in',
     bookingSource: 'walk_in',
     triageData,

@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, Search } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth } from "../hooks";
 import api from "../services/api";
+import MediFlowDataTable from "../components/DataTable";
 
 function PatientsPage() {
   const { user } = useAuth();
@@ -10,6 +12,7 @@ function PatientsPage() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     fetchPatients();
@@ -84,13 +87,13 @@ function PatientsPage() {
 
   const getStatusClass = (status) => {
     switch (status?.toLowerCase()) {
-      case 'completed': return 'discharged';
+      case 'completed': return 'completed';
       case 'booked':
       case 'confirmed': return 'scheduled';
       case 'checked_in':
-      case 'in_consultation': return 'in-treatment';
+      case 'in_consultation': return 'ongoing';
       case 'cancelled':
-      case 'no_show': return 'cancelled';
+      case 'no_show': return 'canceled';
       default: return 'scheduled';
     }
   };
@@ -108,13 +111,140 @@ function PatientsPage() {
     }
   };
 
-  const filteredPatients = patients.filter(p => {
+  const filteredPatients = patients.filter((p) => {
     if (statusFilter === "all") return true;
-    if (statusFilter === "active") return ['booked', 'confirmed', 'checked_in', 'in_consultation'].includes(p.status);
-    if (statusFilter === "completed") return p.status === 'completed';
+    if (statusFilter === "active") return ["booked", "confirmed", "checked_in", "in_consultation"].includes(p.status);
+    if (statusFilter === "completed") return p.status === "completed";
     return true;
   });
 
+  const searchedPatients = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+
+    if (!query) {
+      return filteredPatients;
+    }
+
+    return filteredPatients.filter((patient) =>
+      [patient.name, patient.phone, patient.condition, patient.lastDoctor]
+        .some((value) => String(value || "").toLowerCase().includes(query))
+    );
+  }, [filteredPatients, searchText]);
+
+  // Define table columns
+  const tableColumns = useMemo(() => [
+    {
+      name: "Patient",
+      selector: (row) => row.name,
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-cell">
+          <div
+            className="table-avatar"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "var(--accent)",
+              color: "white",
+              fontWeight: 600,
+              fontSize: "0.75rem",
+            }}
+          >
+            {row.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+          </div>
+          <div className="table-user-info">
+            <span className="table-user-name" style={{ color: "var(--accent)" }}>
+              {row.name}
+            </span>
+            <span className="table-user-email">{row.gender || '--'}</span>
+          </div>
+        </div>
+      ),
+      minWidth: "180px",
+    },
+    {
+      name: "Phone",
+      selector: (row) => row.phone,
+      sortable: true,
+      minWidth: "130px",
+    },
+    {
+      name: "Condition",
+      selector: (row) => row.condition,
+      sortable: true,
+      cell: (row) => (
+        <span title={row.condition}>
+          {row.condition?.slice(0, 25) || '--'}{row.condition?.length > 25 ? '...' : ''}
+        </span>
+      ),
+      minWidth: "150px",
+    },
+    {
+      name: "Last Doctor",
+      selector: (row) => row.lastDoctor,
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-info">
+          <span className="table-user-name">{row.lastDoctor}</span>
+          <span className="table-user-email">{row.lastSpecialty}</span>
+        </div>
+      ),
+      minWidth: "150px",
+    },
+    {
+      name: "Last Visit",
+      selector: (row) => new Date(row.lastVisit).getTime(),
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-info">
+          <span className="table-user-name">
+            {row.lastVisit ? new Date(row.lastVisit).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }) : '--'}
+          </span>
+        </div>
+      ),
+      minWidth: "120px",
+    },
+    {
+      name: "Visits",
+      selector: (row) => row.totalVisits,
+      sortable: true,
+      minWidth: "80px",
+    },
+    {
+      name: "Status",
+      selector: (row) => row.status,
+      sortable: true,
+      cell: (row) => (
+        <span className={`status-badge ${getStatusClass(row.status)}`}>
+          {getStatusLabel(row.status)}
+        </span>
+      ),
+      minWidth: "120px",
+    },
+    {
+      name: "Actions",
+      cell: (row) => (
+        <div className="table-actions">
+          <button
+            className="table-action-btn view"
+            onClick={() => navigate(`/patients/${row._id}`)}
+            title="View Patient"
+          >
+            <Eye size={16} />
+          </button>
+        </div>
+      ),
+      ignoreRowClick: true,
+      minWidth: "80px",
+    },
+  ], [navigate]);
+
+  // Filter actions
   if (loading) {
     return (
       <AppLayout title="Patients" subtitle="Loading...">
@@ -129,79 +259,56 @@ function PatientsPage() {
   return (
     <AppLayout title="Patients" subtitle="Monitor appointments and patient history">
       <main className="patients-page">
-        <section className="panel patients-table-card">
-          <div className="patients-header">
-            <h2>Patients ({filteredPatients.length})</h2>
-            <div className="patients-filters">
+        <MediFlowDataTable
+          className="patients-datatable"
+          title={
+            <div className="appointments-table-toolbar">
+              <div className="datatable-title">
+                <h2>Patients</h2>
+                <p>{searchedPatients.length} patients</p>
+              </div>
+              <div className="datatable-search appointments-table-search">
+                <Search size={18} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                  className="search-input"
+                />
+                {searchText && (
+                  <button
+                    className="search-clear"
+                    onClick={() => setSearchText("")}
+                    type="button"
+                    aria-label="Clear search"
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
               <select
-                className="filter-select"
+                className="filter-select appointments-table-filter-select"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(event) => setStatusFilter(event.target.value)}
               >
                 <option value="all">All Patients</option>
                 <option value="active">Active</option>
                 <option value="completed">Completed</option>
               </select>
             </div>
-          </div>
-
-          <div className="table-wrap">
-            {filteredPatients.length > 0 ? (
-              <table className="patients-table">
-                <thead>
-                  <tr>
-                    <th>Patient</th>
-                    <th>Phone</th>
-                    <th>Condition</th>
-                    <th>Last Doctor</th>
-                    <th>Last Visit</th>
-                    <th>Visits</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPatients.map((row) => (
-                    <tr key={row._id}>
-                      <td>
-                        <div
-                          className="table-person table-person-clickable"
-                          onClick={() => navigate(`/patients/${row._id}`)}
-                        >
-                          <span className="table-avatar">
-                            {row.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-                          </span>
-                          <div>
-                            <strong>{row.name}</strong>
-                            <p>{row.gender || '--'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{row.phone}</td>
-                      <td>{row.condition?.slice(0, 30) || '--'}{row.condition?.length > 30 ? '...' : ''}</td>
-                      <td>
-                        <div className="table-meta">
-                          <strong>{row.lastDoctor}</strong>
-                          <p>{row.lastSpecialty}</p>
-                        </div>
-                      </td>
-                      <td>{row.lastVisit ? new Date(row.lastVisit).toLocaleDateString() : '--'}</td>
-                      <td>{row.totalVisits}</td>
-                      <td>
-                        <span className={`status-pill patient-status patient-status--${getStatusClass(row.status)}`}>
-                          {getStatusLabel(row.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty-state">
-                <p>No patients found</p>
-              </div>
-            )}
-          </div>
-        </section>
+          }
+          columns={tableColumns}
+          data={searchedPatients}
+          loading={loading}
+          selectableRows={false}
+          searchable={false}
+          pagination={true}
+          paginationPerPage={10}
+          paginationRowsPerPageOptions={[10, 25, 50, 100]}
+          onRowClicked={(row) => navigate(`/patients/${row._id}`)}
+          noDataMessage="No patients found"
+        />
       </main>
     </AppLayout>
   );

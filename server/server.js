@@ -75,7 +75,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════╗
-║         MedQueue AI Server Started            ║
+║         MediFlow Server Started               ║
 ╠═══════════════════════════════════════════════╣
 ║  Port: ${PORT}                                    ║
 ║  Mode: ${process.env.NODE_ENV || 'development'}                          ║

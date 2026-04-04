@@ -36,7 +36,7 @@ export default function MainLayout() {
                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-lg">M</span>
                 </div>
-                <span className="font-bold text-xl text-gray-900">MedQueue AI</span>
+                <span className="font-bold text-xl text-gray-900">MediFlow</span>
               </Link>
             </div>
 
@@ -145,10 +145,10 @@ export default function MainLayout() {
               <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold">M</span>
               </div>
-              <span className="font-bold">MedQueue AI</span>
+              <span className="font-bold">MediFlow</span>
             </div>
             <p className="text-gray-400 text-sm">
-              © 2024 MedQueue AI. Built for CRAFATHON'26
+              © 2026 MediFlow. Built for CRAFATHON'26
             </p>
           </div>
         </div>

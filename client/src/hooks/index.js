@@ -6,3 +6,4 @@ export { useDoctors } from './useDoctors';
 export { useHospitals } from './useHospitals';
 export { useChat } from './useChat';
 export { useNotifications } from './useNotifications';
+export { useHospitalSettings } from './useHospitalSettings';
