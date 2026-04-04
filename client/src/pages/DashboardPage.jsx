@@ -496,7 +496,7 @@ function DashboardPage() {
           <div className="patient-actions-section">
             <h2>Quick Actions</h2>
             <div className="patient-actions-grid">
-              <Link to="/chat" className="patient-action-card primary">
+              <Link to="/book" className="patient-action-card primary">
                 <div className="patient-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
@@ -572,7 +572,7 @@ function DashboardPage() {
                 </svg>
                 <h3>No Upcoming Appointments</h3>
                 <p>Book your first appointment with our AI assistant</p>
-                <Link to="/chat" className="btn-primary">
+                <Link to="/book" className="btn-primary">
                   Book Now
                 </Link>
               </div>

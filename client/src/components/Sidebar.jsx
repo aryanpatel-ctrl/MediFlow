@@ -58,7 +58,7 @@ const getNavigationItems = (role) => {
 
   // Default: patient role (all signups are patients)
   return [
-    { label: "Book Appointment", shortLabel: "AI", path: "/chat" },
+    { label: "Book Appointment", shortLabel: "AI", path: "/book" },
     { label: "My Appointments", shortLabel: "MA", path: "/my-appointments" },
   ];
 };
@@ -122,24 +122,6 @@ function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
           ))}
         </ul>
       </nav>
-
-      {/* AI Triage Card - Show for patients */}
-      {user?.role === 'patient' && (
-        <div className="sidebar-upgrade">
-          <div className="upgrade-illustration">
-            <span>AI</span>
-          </div>
-          <h3>AI Triage</h3>
-          <p>Smart symptom analysis with GPT-4o powered chatbot.</p>
-          <NavLink to="/chat" style={{ textDecoration: "none" }}>
-            <button type="button">Book Now</button>
-          </NavLink>
-        </div>
-      )}
-
-
-
-
       <div className="sidebar-footer">
         {user && (
           <div className="sidebar-user">

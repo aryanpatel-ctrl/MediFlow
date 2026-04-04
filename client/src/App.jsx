@@ -27,7 +27,7 @@ import InventoryPage from "./pages/InventoryPage";
 
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
-import ChatPage from "./pages/ChatPage";
+import BookAppointmentPage from "./pages/BookAppointmentPage";
 import DoctorOnboarding from "./pages/DoctorOnboarding";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
@@ -76,6 +76,20 @@ function PublicRoute({ children }) {
   return children;
 }
 
+function RoleHomeRoute() {
+  const { user } = useAuth();
+
+  if (user?.role === "patient") {
+    return <Navigate to="/book" replace />;
+  }
+
+  if (user?.role === "doctor") {
+    return <Navigate to="/doctor/dashboard" replace />;
+  }
+
+  return <DashboardPage />;
+}
+
 function App() {
   const { checkAuth } = useAuth();
 
@@ -106,6 +120,15 @@ function App() {
           </PublicRoute>
         } />
 
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <RoleHomeRoute />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Hospital Admin Settings */}
       <Route
         path="/settings"
@@ -134,14 +157,6 @@ function App() {
         }
       />
       <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/appointments"
         element={
           <ProtectedRoute>
@@ -161,7 +176,7 @@ function App() {
         path="/chat"
         element={
           <ProtectedRoute>
-            <ChatPage />
+            <Navigate to="/book" replace />
           </ProtectedRoute>
         }
       />
@@ -169,7 +184,7 @@ function App() {
         path="/book"
         element={
           <ProtectedRoute>
-            <ChatPage />
+            <BookAppointmentPage />
           </ProtectedRoute>
         }
       />

@@ -10,7 +10,7 @@ const RESCHEDULE_REASONS = [
   "Other"
 ];
 
-function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment }) {
+function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment, requestApproval = false }) {
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
@@ -83,11 +83,11 @@ function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment })
         reason: finalReason
       });
 
-      toast.success("Appointment rescheduled successfully");
+      toast.success(requestApproval ? "Reschedule request sent to doctor" : "Appointment rescheduled successfully");
       onSuccess?.();
       handleClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to reschedule appointment");
+      toast.error(error.response?.data?.message || (requestApproval ? "Failed to send reschedule request" : "Failed to reschedule appointment"));
     } finally {
       setSubmitting(false);
     }
@@ -117,7 +117,7 @@ function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment })
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content reschedule-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header modal-header-warning">
-          <h2>Reschedule Appointment</h2>
+          <h2>{requestApproval ? "Request Reschedule" : "Reschedule Appointment"}</h2>
           <button className="modal-close" onClick={handleClose} type="button">
             &times;
           </button>
@@ -150,6 +150,11 @@ function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment })
                 ⚠️ {remainingReschedules === 0
                   ? "This appointment cannot be rescheduled again."
                   : `Only ${remainingReschedules} reschedule remaining.`}
+              </p>
+            )}
+            {requestApproval && (
+              <p className="reschedule-warning">
+                Your doctor must approve this new date and slot before the appointment is changed.
               </p>
             )}
           </div>
@@ -233,7 +238,9 @@ function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment })
               className="btn-warning"
               disabled={submitting || remainingReschedules === 0}
             >
-              {submitting ? "Rescheduling..." : "Reschedule Appointment"}
+              {submitting
+                ? (requestApproval ? "Sending Request..." : "Rescheduling...")
+                : (requestApproval ? "Send Request" : "Reschedule Appointment")}
             </button>
           </div>
         </form>

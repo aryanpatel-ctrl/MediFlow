@@ -84,6 +84,18 @@ const formatAppointmentStatus = (status) => {
   }
 };
 
+const getAppointmentDisplayStatus = (appointment) => {
+  if (appointment.rescheduleRequest?.status === "pending") {
+    return "Reschedule Requested";
+  }
+
+  if (appointment.rescheduleRequest?.status === "rejected") {
+    return "Reschedule Rejected";
+  }
+
+  return formatAppointmentStatus(appointment.status);
+};
+
 const getStatusClass = (status) => {
   switch (status?.toLowerCase()) {
     case "completed":
@@ -484,6 +496,28 @@ function AppointmentsPage() {
     return !["completed", "cancelled", "no_show", "rescheduled"].includes(status);
   };
 
+  const hasPendingRescheduleRequest = (appointment) => appointment.rescheduleRequest?.status === "pending";
+
+  const handleApproveRescheduleRequest = async (appointment) => {
+    try {
+      await api.put(`/appointments/${appointment._id}/reschedule-request/approve`, {});
+      toast.success("Reschedule request approved");
+      fetchAppointments(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to approve reschedule request");
+    }
+  };
+
+  const handleRejectRescheduleRequest = async (appointment) => {
+    try {
+      await api.put(`/appointments/${appointment._id}/reschedule-request/reject`, {});
+      toast.success("Reschedule request rejected");
+      fetchAppointments(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to reject reschedule request");
+    }
+  };
+
   // DataTable columns definition (must be before any return for hooks rules)
   const tableColumns = useMemo(() => [
     {
@@ -573,7 +607,7 @@ function AppointmentsPage() {
       sortable: true,
       cell: (row) => (
         <span className={`status-badge ${getStatusClass(row.status)}`}>
-          {formatAppointmentStatus(row.status)}
+          {getAppointmentDisplayStatus(row)}
         </span>
       ),
       minWidth: "110px",
@@ -592,19 +626,45 @@ function AppointmentsPage() {
           >
             <Eye size={16} />
           </button>
-          {canModifyAppointment(row) && (
+          {hasPendingRescheduleRequest(row) && (user?.role === "doctor" || user?.role === "hospital_admin") ? (
             <>
               <button
-                className="table-action-btn edit"
+                className="table-request-btn approve"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedAppointment(row);
-                  setShowRescheduleModal(true);
+                  handleApproveRescheduleRequest(row);
                 }}
-                title="Reschedule"
+                title="Approve reschedule request"
               >
-                <Calendar size={16} />
+                Approve
               </button>
+              <button
+                className="table-request-btn reject"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRejectRescheduleRequest(row);
+                }}
+                title="Reject reschedule request"
+              >
+                Reject
+              </button>
+            </>
+          ) : null}
+          {canModifyAppointment(row) && (
+            <>
+              {!hasPendingRescheduleRequest(row) && (
+                <button
+                  className="table-action-btn edit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedAppointment(row);
+                    setShowRescheduleModal(true);
+                  }}
+                  title="Reschedule"
+                >
+                  <Calendar size={16} />
+                </button>
+              )}
               <button
                 className="table-action-btn delete"
                 onClick={(e) => {
@@ -621,9 +681,16 @@ function AppointmentsPage() {
         </div>
       ),
       ignoreRowClick: true,
-      minWidth: "120px",
+      minWidth: "220px",
     },
-  ], [navigate]);
+  ], [
+    navigate,
+    user?.role,
+    canModifyAppointment,
+    hasPendingRescheduleRequest,
+    handleApproveRescheduleRequest,
+    handleRejectRescheduleRequest,
+  ]);
 
   if (loading) {
     return (
