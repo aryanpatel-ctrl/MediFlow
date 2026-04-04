@@ -8,6 +8,7 @@ const Notification = require('./Notification');
 const OTP = require('./OTP');
 const Medicine = require('./Medicine');
 const Prescription = require('./Prescription');
+const AICallLog = require('./AICallLog');
 
 module.exports = {
   User,
@@ -19,5 +20,6 @@ module.exports = {
   Notification,
   OTP,
   Medicine,
-  Prescription
+  Prescription,
+  AICallLog
 };

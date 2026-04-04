@@ -5,9 +5,11 @@
 
 const queueManager = require('./queueManager');
 const mlService = require('./mlService');
+const vapiService = require('./vapiService');
 
 let noShowInterval = null;
 let highRiskAlertInterval = null;
+let appointmentReminderCallInterval = null;
 
 /**
  * Start auto no-show detection scheduler
@@ -74,6 +76,37 @@ function startHighRiskAlertScheduler(intervalMinutes = 30) {
 }
 
 /**
+ * Start automated reminder calling scheduler
+ * Runs every minute to place calls roughly 1 hour before appointments.
+ */
+function startAppointmentReminderCallScheduler(intervalMinutes = 1) {
+  console.log(`Starting AI reminder calling scheduler (every ${intervalMinutes} minutes)`);
+
+  if (appointmentReminderCallInterval) {
+    clearInterval(appointmentReminderCallInterval);
+  }
+
+  appointmentReminderCallInterval = setInterval(async () => {
+    try {
+      const [dueResult, retryResult] = await Promise.all([
+        vapiService.processDueReminderCalls(new Date()),
+        vapiService.processRetryReminderCalls(new Date())
+      ]);
+
+      if (dueResult.processed > 0) {
+        console.log(`AI reminder calls triggered: ${dueResult.processed}`);
+      }
+
+      if (retryResult.processed > 0) {
+        console.log(`AI reminder retries triggered: ${retryResult.processed}`);
+      }
+    } catch (error) {
+      console.error('AI reminder calling error:', error.message);
+    }
+  }, intervalMinutes * 60 * 1000);
+}
+
+/**
  * Run immediate no-show check (for manual trigger)
  */
 async function runNoShowCheckNow(hospitalId = null) {
@@ -96,6 +129,12 @@ function stopSchedulers() {
     highRiskAlertInterval = null;
     console.log('Stopped high-risk alert scheduler');
   }
+
+  if (appointmentReminderCallInterval) {
+    clearInterval(appointmentReminderCallInterval);
+    appointmentReminderCallInterval = null;
+    console.log('Stopped AI reminder calling scheduler');
+  }
 }
 
 /**
@@ -104,9 +143,13 @@ function stopSchedulers() {
 function initializeSchedulers(config = {}) {
   const noShowInterval = config.noShowIntervalMinutes || 5;
   const highRiskInterval = config.highRiskIntervalMinutes || 30;
+  const aiCallInterval = config.aiCallIntervalMinutes || 1;
 
   startNoShowScheduler(noShowInterval);
   startHighRiskAlertScheduler(highRiskInterval);
+  if (process.env.ENABLE_AI_REMINDER_CALLS !== 'false') {
+    startAppointmentReminderCallScheduler(aiCallInterval);
+  }
 
   console.log('All schedulers initialized');
 }
@@ -114,6 +157,7 @@ function initializeSchedulers(config = {}) {
 module.exports = {
   startNoShowScheduler,
   startHighRiskAlertScheduler,
+  startAppointmentReminderCallScheduler,
   runNoShowCheckNow,
   stopSchedulers,
   initializeSchedulers

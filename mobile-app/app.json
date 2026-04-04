@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "MediFlow Mobile",
+    "slug": "mediflow-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.mediflow.mobile"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:5002/api"
+    }
+  }
+}

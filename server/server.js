@@ -91,7 +91,8 @@ server.listen(PORT, () => {
   if (process.env.ENABLE_SCHEDULERS !== 'false') {
     schedulerService.initializeSchedulers({
       noShowIntervalMinutes: parseInt(process.env.NO_SHOW_CHECK_INTERVAL) || 5,
-      highRiskIntervalMinutes: parseInt(process.env.HIGH_RISK_CHECK_INTERVAL) || 30
+      highRiskIntervalMinutes: parseInt(process.env.HIGH_RISK_CHECK_INTERVAL) || 30,
+      aiCallIntervalMinutes: parseInt(process.env.AI_CALL_CHECK_INTERVAL) || 1
     });
   }
 });

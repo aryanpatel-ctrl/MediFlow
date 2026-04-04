@@ -138,6 +138,43 @@ const appointmentSchema = new mongoose.Schema({
     sentAt: Date,
     status: String
   }],
+  // Voice confirmation workflow
+  attendanceConfirmation: {
+    status: {
+      type: String,
+      enum: [
+        'pending',
+        'call_scheduled',
+        'call_in_progress',
+        'confirmed',
+        'cancel_requested',
+        'cancelled',
+        'reschedule_requested',
+        'unreachable',
+        'failed'
+      ],
+      default: 'pending'
+    },
+    automatedCallEnabled: {
+      type: Boolean,
+      default: true
+    },
+    callAttemptCount: {
+      type: Number,
+      default: 0
+    },
+    lastCallAttemptAt: Date,
+    lastCallLogId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AICallLog'
+    },
+    lastOutcome: String,
+    lastConfirmedAt: Date,
+    lastActionSource: {
+      type: String,
+      enum: ['system', 'patient', 'doctor', 'hospital', 'ai_call']
+    }
+  },
   // Payment (if applicable)
   payment: {
     amount: Number,
