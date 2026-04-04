@@ -1063,15 +1063,16 @@ input {
 }
 
 .bar-chart {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   align-items: end;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   height: 260px;
   padding: 24px 12px 8px;
   background: linear-gradient(180deg, transparent 0%, rgba(95, 183, 180, 0.03) 100%);
   border-radius: 14px;
   margin-top: 8px;
+  min-width: 0;
 }
 
 .bar-column {
@@ -1079,20 +1080,21 @@ input {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  flex: 1;
+  min-width: 0;
 }
 
 .bar-group {
   display: flex;
   align-items: end;
-  gap: 5px;
+  gap: 4px;
   height: 100%;
   width: 100%;
   justify-content: center;
+  min-width: 0;
 }
 
 .bar-group span {
-  width: 14px;
+  width: min(14px, 28%);
   border-radius: 8px 8px 4px 4px;
   background: linear-gradient(180deg, #e8f5f4, #d0ebe9);
   transition: all 0.3s ease;
@@ -1115,6 +1117,7 @@ input {
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 600;
+  text-align: center;
 }
 
 .line-chart {
@@ -2086,6 +2089,64 @@ tbody tr:last-child td {
 
 .appointment-table-header h2 {
   margin: 0;
+}
+
+.appointments-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.appointments-table-search {
+  flex: 0 1 360px;
+  max-width: 360px;
+  min-width: 220px;
+}
+
+.appointments-table-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.patients-datatable .rdt_TableHeader {
+  padding-bottom: 20px;
+}
+
+.patients-datatable .rdt_TableHead {
+  margin-top: 10px;
+}
+
+.inventory-datatable .rdt_TableHead {
+  margin-top: 10px;
+}
+
+.appointments-table-filter-select {
+  flex: 0 0 auto;
+  min-width: 170px;
+  height: 44px;
+  padding: 0 40px 0 16px;
+  border-radius: 14px;
+  border: 1px solid #d9e4e6;
+  background: #fbfdfd;
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 500;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.appointments-table-filter-select:hover {
+  border-color: #c6d6d9;
+}
+
+.appointments-table-filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(95, 183, 180, 0.12);
 }
 
 .appointment-table-filter {
@@ -4642,10 +4703,18 @@ tbody tr:last-child td {
 }
 
 .department-breakdown-column {
+  position: relative;
   display: grid;
   grid-template-rows: repeat(4, auto) 28px;
   gap: 6px;
   align-items: end;
+  outline: none;
+}
+
+.department-breakdown-column.is-hovered .department-breakdown-bar {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 10px 18px rgba(63, 106, 112, 0.08);
 }
 
 .department-breakdown-bar {
@@ -4657,17 +4726,19 @@ tbody tr:last-child td {
 .department-breakdown-tooltip {
   position: absolute;
   left: 50%;
-  top: -68px;
+  top: -112px;
   transform: translateX(-50%);
   display: grid;
   gap: 3px;
-  min-width: 92px;
+  min-width: 132px;
   padding: 8px 10px;
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 10px 22px rgba(84, 117, 118, 0.12);
   color: var(--text-soft);
   font-size: 0.56rem;
+  z-index: 3;
+  pointer-events: none;
 }
 
 .department-breakdown-tooltip strong {
@@ -5739,6 +5810,7 @@ tbody tr:last-child td {
   grid-template-columns: 22px repeat(7, minmax(0, 1fr));
   gap: 8px;
   align-items: end;
+  min-width: 0;
 }
 
 .inventory-trend-axis {
@@ -5752,6 +5824,7 @@ tbody tr:last-child td {
   display: grid;
   justify-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .inventory-trend-column small {
@@ -5763,8 +5836,8 @@ tbody tr:last-child td {
   display: flex;
   align-items: end;
   width: 100%;
-  max-width: 32px;
-  height: 118px;
+  max-width: 36px;
+  height: 180px;
   padding: 0 2px;
   border-radius: 10px;
   background: linear-gradient(180deg, #f5fbfb, #eef6f6);
@@ -5778,8 +5851,11 @@ tbody tr:last-child td {
 }
 
 .inventory-trend-column strong {
+  display: block;
   color: var(--text-soft);
   font-size: 0.58rem;
+  text-align: center;
+  word-break: break-word;
 }
 
 .inventory-category-bars {
@@ -8156,6 +8232,7 @@ tbody tr:last-child td {
     top: 8px;
     transform: none;
     z-index: 2;
+    min-width: 120px;
   }
 
   .department-trends-chart {
@@ -9120,21 +9197,42 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .table-user-info {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
 }
 
 .table-user-name {
   font-weight: 500;
   color: var(--text);
+  min-width: 0;
 }
 
 .table-user-email {
   font-size: 0.75rem;
   color: var(--text-soft);
+  min-width: 0;
+}
+
+.inventory-table-user-info {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.inventory-truncate {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Responsive table adjustments */
@@ -9152,6 +9250,21 @@ tbody tr:last-child td {
 
   .datatable-search {
     max-width: none;
+  }
+
+  .appointments-table-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .appointments-table-filter-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .appointments-table-add-button {
+    width: 100%;
+    justify-content: center;
   }
 
   .datatable-bulk-actions {
@@ -9205,6 +9318,10 @@ tbody tr:last-child td {
 /* Appointment table section */
 .appointment-table-section {
   margin-top: 24px;
+}
+
+.appointments-datatable .rdt_TableHeader {
+  padding-bottom: 16px;
 }
 
 /* Override react-data-table-component checkbox */
@@ -11755,6 +11872,41 @@ tbody tr:last-child td {
   color: var(--text);
 }
 
+.modal-form .form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  min-height: 88px;
+}
+
+.medicine-modal {
+  max-width: 720px;
+}
+
+.medicine-view-modal .form-group {
+  margin-bottom: 1rem;
+}
+
+.medicine-view-subtitle {
+  margin: -0.5rem 0 1rem;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.medicine-view-value {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 48px;
+}
+
 .modal-form .form-group small {
   display: block;
   margin-top: 0.25rem;
@@ -11827,6 +11979,7 @@ tbody tr:last-child td {
   border: 1px solid var(--border);
   border-radius: 24px;
   box-shadow: var(--shadow);
+  color: var(--text);
 }
 
 .settings-tabs-panel {
@@ -11845,6 +11998,7 @@ tbody tr:last-child td {
   border: 1px solid transparent;
   border-radius: 18px;
   background: transparent;
+  color: var(--text);
   text-align: left;
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
@@ -11891,6 +12045,7 @@ tbody tr:last-child td {
 .settings-editor-header h3 {
   margin: 0;
   font-size: 1.25rem;
+  color: var(--text);
 }
 
 .settings-editor-header p {
@@ -11924,6 +12079,11 @@ tbody tr:last-child td {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: #fff;
+  color: var(--text);
+}
+
+.settings-inline-form__field input::placeholder {
+  color: var(--text-soft);
 }
 
 .settings-inline-form__action {
@@ -11948,10 +12108,12 @@ tbody tr:last-child td {
   border: 1px solid var(--border);
   border-radius: 18px;
   background: linear-gradient(135deg, #ffffff, #f8fbfb);
+  color: var(--text);
 }
 
 .settings-chip-card span {
   font-weight: 600;
+  color: var(--text);
 }
 
 .settings-chip-card button {
@@ -16981,6 +17143,11 @@ tbody tr:last-child td {
   background: var(--surface);
   border-radius: var(--radius-md);
   border: 1px dashed var(--border);
+}
+
+.no-queues {
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .queue-activity-panel h3 {

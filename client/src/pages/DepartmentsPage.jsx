@@ -29,6 +29,7 @@ function DepartmentsPage() {
   const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("doctors");
+  const [hoveredDepartment, setHoveredDepartment] = useState(null);
 
   useEffect(() => {
     fetchDepartments();
@@ -181,8 +182,6 @@ function DepartmentsPage() {
     ],
   }));
 
-  const activeDepartmentName = breakdownRows[0]?.name;
-
   if (loading) {
     return (
       <AppLayout title="Departments" subtitle="Loading...">
@@ -250,11 +249,31 @@ function DepartmentsPage() {
 
               <div className="department-breakdown-grid">
                 {breakdownRows.map((department) => (
-                  <div className="department-breakdown-column" key={department.name}>
+                  <div
+                    className={`department-breakdown-column${
+                      hoveredDepartment === department.name ? " is-hovered" : ""
+                    }`}
+                    key={department.name}
+                    onMouseEnter={() => setHoveredDepartment(department.name)}
+                    onMouseLeave={() => setHoveredDepartment(null)}
+                    onFocus={() => setHoveredDepartment(department.name)}
+                    onBlur={() => setHoveredDepartment(null)}
+                    tabIndex={0}
+                  >
+                    {hoveredDepartment === department.name ? (
+                      <div className="department-breakdown-tooltip" role="tooltip">
+                        <strong>{department.name}</strong>
+                        <span>Doctors {department.doctorCount}</span>
+                        <span>Available {department.availableToday}</span>
+                        <span>Slots Today {department.totalSlotsToday}</span>
+                        <span>Avg Fee Rs. {department.averageFee}</span>
+                        <span>Avg Exp {department.averageExperience} yrs</span>
+                      </div>
+                    ) : null}
                     {department.values.map((value, index) => (
                       <div
                         className={`department-breakdown-bar department-breakdown-bar--${
-                          department.name === activeDepartmentName && index === 3
+                          hoveredDepartment === department.name && index === 3
                             ? "active"
                             : index === 3
                               ? "dark"
@@ -266,16 +285,7 @@ function DepartmentsPage() {
                         }`}
                         key={`${department.name}-${index}`}
                         style={{ height: `${40 + value * 1.7}px` }}
-                      >
-                        {department.name === activeDepartmentName && index === 3 ? (
-                          <div className="department-breakdown-tooltip">
-                            <strong>{department.name}</strong>
-                            <span>Doctors {department.doctorCount}</span>
-                            <span>Available {department.availableToday}</span>
-                            <span>Slots {department.totalSlotsToday}</span>
-                          </div>
-                        ) : null}
-                      </div>
+                      />
                     ))}
                     <span className="department-breakdown-label">{department.name}</span>
                   </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Boxes, CalendarRange, Plus, Stethoscope, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -49,6 +50,7 @@ const normalizeItems = (items, fallback) => {
 
 function HospitalSettings() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [hospital, setHospital] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -67,18 +69,22 @@ function HospitalSettings() {
   const [connectingGoogle, setConnectingGoogle] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
     fetchHospitalData();
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("google_connected") === "true") {
       toast.success("Google Calendar connected successfully!");
-      window.history.replaceState({}, "", "/settings");
+      navigate("/settings", { replace: true });
     }
     if (params.get("google_error")) {
       toast.error(`Google Calendar error: ${params.get("google_error")}`);
-      window.history.replaceState({}, "", "/settings");
+      navigate("/settings", { replace: true });
     }
-  }, []);
+  }, [user, navigate]);
 
   const activeConfig = useMemo(
     () => settingTabs.find((tab) => tab.id === activeTab) || settingTabs[0],

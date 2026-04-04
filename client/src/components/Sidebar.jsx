@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   ActivitySquare,
   CalendarDays,
@@ -12,7 +11,6 @@ import {
   Settings,
   Menu,
   X,
-  AlertTriangle,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -68,7 +66,6 @@ const getNavigationItems = (role) => {
 function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const userName = user?.name || "City Hospital Admin";
   const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=2A9D8F&color=fff`;
@@ -76,18 +73,9 @@ function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
   const navigationItems = getNavigationItems(user?.role);
 
   const handleSignOutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const handleConfirmLogout = () => {
-    setShowLogoutConfirm(false);
     logout();
     toast.success("Logged out successfully");
     navigate("/login");
-  };
-
-  const handleCancelLogout = () => {
-    setShowLogoutConfirm(false);
   };
 
   return (
@@ -172,27 +160,6 @@ function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
           Sign Out
         </button>
       </div>
-
-      {/* Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div className="logout-confirm-overlay" onClick={handleCancelLogout}>
-          <div className="logout-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="logout-confirm-icon">
-              <AlertTriangle size={32} strokeWidth={1.5} />
-            </div>
-            <h3>Confirm Logout</h3>
-            <p>Are you sure you want to sign out of your account?</p>
-            <div className="logout-confirm-actions">
-              <button className="logout-cancel-btn" type="button" onClick={handleCancelLogout}>
-                Cancel
-              </button>
-              <button className="logout-confirm-btn" type="button" onClick={handleConfirmLogout}>
-                Yes, Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }
