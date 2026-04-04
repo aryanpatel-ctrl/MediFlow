@@ -138,6 +138,20 @@ const appointmentSchema = new mongoose.Schema({
     sentAt: Date,
     status: String
   }],
+  // Automated reminder tracking
+  reminders: {
+    sent24h: { type: Boolean, default: false },
+    sent24hAt: Date,
+    sent1h: { type: Boolean, default: false },
+    sent1hAt: Date
+  },
+  // No-show risk interventions
+  interventions: [{
+    type: { type: String, enum: ['sms_reminder', 'phone_call', 'email_reminder', 'other'] },
+    notes: String,
+    performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    performedAt: Date
+  }],
   // Payment (if applicable)
   payment: {
     amount: Number,
@@ -166,6 +180,25 @@ appointmentSchema.index({ doctorId: 1, date: 1 });
 appointmentSchema.index({ patientId: 1, date: -1 });
 appointmentSchema.index({ hospitalId: 1, date: 1, status: 1 });
 appointmentSchema.index({ date: 1, status: 1, 'triageData.urgencyScore': -1 });
+
+// CRITICAL: Unique partial index to prevent double booking
+// This ensures only ONE active appointment per doctor/date/slot combination
+appointmentSchema.index(
+  { doctorId: 1, date: 1, slotTime: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $nin: ['cancelled', 'no_show', 'rescheduled'] }
+    },
+    name: 'unique_active_slot'
+  }
+);
+
+// Index for checking if patient already has appointment with doctor on same day
+appointmentSchema.index(
+  { patientId: 1, doctorId: 1, date: 1, status: 1 },
+  { name: 'patient_doctor_date_check' }
+);
 
 // Virtual for formatted date
 appointmentSchema.virtual('formattedDate').get(function() {

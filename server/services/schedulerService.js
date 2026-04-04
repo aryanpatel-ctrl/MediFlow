@@ -1,10 +1,11 @@
 /**
  * Scheduler Service
- * Handles periodic tasks like auto no-show detection
+ * Handles periodic tasks like auto no-show detection and reminders
  */
 
 const queueManager = require('./queueManager');
 const mlService = require('./mlService');
+const reminderService = require('./reminderService');
 
 let noShowInterval = null;
 let highRiskAlertInterval = null;
@@ -107,6 +108,9 @@ function initializeSchedulers(config = {}) {
 
   startNoShowScheduler(noShowInterval);
   startHighRiskAlertScheduler(highRiskInterval);
+
+  // Start appointment reminder scheduler
+  reminderService.startReminderScheduler();
 
   console.log('All schedulers initialized');
 }

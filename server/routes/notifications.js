@@ -119,4 +119,86 @@ router.put('/fcm-token', protect, asyncHandler(async (req, res) => {
   });
 }));
 
+// @route   GET /api/notifications/queue/stats
+// @desc    Get notification queue stats (admin only)
+// @access  Private (hospital_admin, super_admin)
+router.get('/queue/stats', protect, asyncHandler(async (req, res) => {
+  // Only allow admins
+  if (!['hospital_admin', 'super_admin'].includes(req.user.role)) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  const notificationProcessor = require('../services/notificationProcessor');
+  const hospitalId = req.user.role === 'hospital_admin' ? req.user.hospitalId : null;
+
+  const stats = await notificationProcessor.getProcessorStats(hospitalId);
+
+  res.status(200).json({
+    success: true,
+    ...stats
+  });
+}));
+
+// @route   GET /api/notifications/queue/dead-letter
+// @desc    Get dead letter notifications for manual review
+// @access  Private (hospital_admin, super_admin)
+router.get('/queue/dead-letter', protect, asyncHandler(async (req, res) => {
+  if (!['hospital_admin', 'super_admin'].includes(req.user.role)) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  const { NotificationQueue } = require('../models');
+  const { limit = 50 } = req.query;
+
+  const deadLetters = await NotificationQueue.getDeadLetterNotifications(parseInt(limit));
+
+  res.status(200).json({
+    success: true,
+    count: deadLetters.length,
+    notifications: deadLetters
+  });
+}));
+
+// @route   POST /api/notifications/queue/retry/:id
+// @desc    Manually retry a dead letter notification
+// @access  Private (hospital_admin, super_admin)
+router.post('/queue/retry/:id', protect, asyncHandler(async (req, res) => {
+  if (!['hospital_admin', 'super_admin'].includes(req.user.role)) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  const notificationProcessor = require('../services/notificationProcessor');
+
+  const result = await notificationProcessor.retryDeadLetter(req.params.id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Notification retry initiated',
+    result
+  });
+}));
+
+// @route   GET /api/notifications/queue/user/:userId
+// @desc    Get notification delivery history for a user (admin only)
+// @access  Private (hospital_admin, super_admin)
+router.get('/queue/user/:userId', protect, asyncHandler(async (req, res) => {
+  if (!['hospital_admin', 'super_admin'].includes(req.user.role)) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  const { NotificationQueue } = require('../models');
+  const { limit = 20 } = req.query;
+
+  const notifications = await NotificationQueue.find({ userId: req.params.userId })
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .select('type channels status deliveryResults createdAt payload.title');
+
+  res.status(200).json({
+    success: true,
+    count: notifications.length,
+    notifications
+  });
+}));
+
 module.exports = router;

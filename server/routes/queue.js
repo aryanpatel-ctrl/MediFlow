@@ -3,7 +3,21 @@ const router = express.Router();
 const { Queue, Appointment, Notification, Doctor, User } = require('../models');
 const { protect, authorize, asyncHandler, AppError } = require('../middleware');
 const queueManager = require('../services/queueManager');
+const slotRecoveryService = require('../services/slotRecoveryService');
+const { QueueError } = queueManager;
 const { sendPushNotification } = require('../services/notificationService');
+
+// Custom error handler for queue operations
+const handleQueueError = (error, res) => {
+  if (error.name === 'QueueError') {
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      code: error.code,
+      message: error.message
+    });
+  }
+  throw error; // Re-throw for global error handler
+};
 
 // @route   GET /api/queue/hospital/:hospitalId/summary
 // @desc    Get hospital-wide queue summary for dashboard
@@ -354,6 +368,62 @@ router.put('/:doctorId/skip-patient', protect, authorize('doctor', 'hospital_adm
   });
 }));
 
+// @route   POST /api/queue/:doctorId/handle-no-show/:appointmentId
+// @desc    Handle no-show with auto-advance and slot recovery
+// @access  Private/Doctor/Hospital Admin
+router.post('/:doctorId/handle-no-show/:appointmentId', protect, authorize('doctor', 'hospital_admin'), asyncHandler(async (req, res) => {
+  const { reason, autoAdvance = true, tryFillSlot = true } = req.body;
+
+  const result = await slotRecoveryService.handleNoShow(
+    req.params.doctorId,
+    req.params.appointmentId,
+    { reason, autoAdvance, tryFillSlot }
+  );
+
+  // Get hospital info for broadcasting
+  const doctor = await Doctor.findById(req.params.doctorId).populate('userId', 'name');
+  const hospitalId = doctor?.hospitalId;
+  const doctorName = doctor?.userId?.name || 'Doctor';
+
+  // Emit socket events
+  const io = req.app.get('io');
+  if (io) {
+    // Update queue display
+    io.to(`queue:${req.params.doctorId}`).emit('queue:no-show-handled', {
+      queueAdvanced: result.queueAdvanced,
+      nextPatient: result.nextPatient,
+      slotRecoveryAttempted: result.slotRecoveryAttempted
+    });
+
+    // If next patient was called, notify them
+    if (result.queueAdvanced && result.nextPatient) {
+      io.to(`user:${result.nextPatient.patientId}`).emit('queue:your-turn', {
+        doctorId: req.params.doctorId,
+        queueNumber: result.nextPatient.queueNumber
+      });
+    }
+
+    // Broadcast to hospital admin
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:no-show-handled', {
+        doctorId: req.params.doctorId,
+        doctorName,
+        queueAdvanced: result.queueAdvanced,
+        nextPatientName: result.nextPatient?.name,
+        slotRecoveryAttempted: result.slotRecoveryAttempted
+      });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: result.queueAdvanced
+      ? `No-show recorded. ${result.nextPatient?.name || 'Next patient'} has been called.`
+      : 'No-show recorded. No more patients in queue.',
+    ...result
+  });
+}));
+
 // @route   PUT /api/queue/:doctorId/add-delay
 // @desc    Add delay to queue
 // @access  Private/Doctor
@@ -639,6 +709,194 @@ router.put('/:doctorId/close', protect, authorize('doctor', 'hospital_admin'), a
     message: 'Queue closed',
     summary: queue.getSummary()
   });
+}));
+
+// @route   GET /api/queue/:doctorId/health
+// @desc    Get queue health status (for monitoring)
+// @access  Private/Doctor/Hospital Admin
+router.get('/:doctorId/health', protect, authorize('doctor', 'hospital_admin'), asyncHandler(async (req, res) => {
+  const health = await queueManager.getQueueHealth(req.params.doctorId);
+
+  res.status(200).json({
+    success: true,
+    ...health
+  });
+}));
+
+// @route   DELETE /api/queue/appointment/:appointmentId
+// @desc    Cancel appointment and remove from queue
+// @access  Private
+router.delete('/appointment/:appointmentId', protect, asyncHandler(async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const result = await queueManager.cancelAppointmentInQueue(
+      req.params.appointmentId,
+      reason || 'Cancelled by user'
+    );
+
+    // Emit socket event for queue update
+    const appointment = await Appointment.findById(req.params.appointmentId);
+    if (appointment) {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`queue:${appointment.doctorId}`).emit('queue:update', {
+          action: 'cancelled',
+          appointmentId: req.params.appointmentId,
+          summary: result.summary
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    handleQueueError(error, res);
+  }
+}));
+
+// @route   POST /api/queue/:doctorId/initialize
+// @desc    Initialize queue for a doctor
+// @access  Private/Doctor/Hospital Admin
+router.post('/:doctorId/initialize', protect, authorize('doctor', 'hospital_admin'), asyncHandler(async (req, res) => {
+  try {
+    const queue = await queueManager.initializeQueue(req.params.doctorId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Queue initialized',
+      queue: {
+        _id: queue._id,
+        status: queue.status,
+        totalPatients: queue.totalPatients,
+        summary: queue.getSummary()
+      }
+    });
+  } catch (error) {
+    handleQueueError(error, res);
+  }
+}));
+
+// @route   GET /api/queue/:doctorId/display
+// @desc    Get queue display data for screens
+// @access  Public (for TV displays in waiting rooms)
+router.get('/:doctorId/display', asyncHandler(async (req, res) => {
+  const display = await queueManager.getQueueDisplay(req.params.doctorId);
+
+  res.status(200).json({
+    success: true,
+    ...display
+  });
+}));
+
+// @route   POST /api/queue/:doctorId/check-in/:appointmentId
+// @desc    Check in patient to queue
+// @access  Private
+router.post('/:doctorId/check-in/:appointmentId', protect, asyncHandler(async (req, res) => {
+  try {
+    const result = await queueManager.checkInPatient(req.params.appointmentId);
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`queue:${req.params.doctorId}`).emit('queue:check-in', {
+        queueNumber: result.queueNumber,
+        position: result.position
+      });
+
+      // Notify the patient
+      io.to(`user:${req.user.id}`).emit('queue:checked-in', {
+        queueNumber: result.queueNumber,
+        position: result.position,
+        estimatedWait: result.estimatedWait
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    handleQueueError(error, res);
+  }
+}));
+
+// @route   POST /api/queue/:doctorId/walk-in
+// @desc    Add walk-in patient to queue
+// @access  Private/Hospital Admin/Doctor
+router.post('/:doctorId/walk-in', protect, authorize('doctor', 'hospital_admin'), asyncHandler(async (req, res) => {
+  try {
+    const { patientId, triageData } = req.body;
+
+    if (!patientId) {
+      throw new AppError('Patient ID is required', 400);
+    }
+
+    const result = await queueManager.addWalkIn(
+      req.params.doctorId,
+      patientId,
+      triageData || {}
+    );
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`queue:${req.params.doctorId}`).emit('queue:walk-in', {
+        queueNumber: result.queueNumber,
+        summary: result.summary
+      });
+
+      // Notify the patient
+      io.to(`user:${patientId}`).emit('queue:added', {
+        queueNumber: result.queueNumber,
+        estimatedWait: result.estimatedWait,
+        appointmentId: result.appointment._id
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    handleQueueError(error, res);
+  }
+}));
+
+// @route   GET /api/queue/health
+// @desc    Overall queue system health check
+// @access  Public (for monitoring)
+router.get('/health', asyncHandler(async (req, res) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
+    // Check if we can query the database
+    const activeQueues = await Queue.countDocuments({
+      date: today,
+      status: 'active'
+    });
+
+    const totalQueues = await Queue.countDocuments({ date: today });
+
+    res.status(200).json({
+      success: true,
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      metrics: {
+        activeQueues,
+        totalQueues,
+        date: today.toISOString().split('T')[0]
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      error: error.message
+    });
+  }
 }));
 
 module.exports = router;

@@ -11,6 +11,8 @@ const notificationRoutes = require('./notifications');
 const medicineRoutes = require('./medicines');
 const prescriptionRoutes = require('./prescriptions');
 const loadBalancingRoutes = require('./loadBalancing');
+const dashboardRoutes = require('./dashboard');
+const waitlistRoutes = require('./waitlist');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -23,6 +25,8 @@ router.use('/notifications', notificationRoutes);
 router.use('/medicines', medicineRoutes);
 router.use('/prescriptions', prescriptionRoutes);
 router.use('/load-balancing', loadBalancingRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/waitlist', waitlistRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

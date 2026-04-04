@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 
+// Custom error class for queue operations
+class QueueError extends Error {
+  constructor(message, code = 'QUEUE_ERROR', statusCode = 400) {
+    super(message);
+    this.name = 'QueueError';
+    this.code = code;
+    this.statusCode = statusCode;
+  }
+}
+
 const queueEntrySchema = new mongoose.Schema({
   appointmentId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -21,7 +31,7 @@ const queueEntrySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['waiting', 'in_consultation', 'completed', 'skipped', 'no_show'],
+    enum: ['waiting', 'in_consultation', 'completed', 'skipped', 'no_show', 'cancelled'],
     default: 'waiting'
   },
   slotTime: String,
@@ -54,7 +64,12 @@ const queueEntrySchema = new mongoose.Schema({
     default: 0
   },
   // Notes
-  notes: String
+  notes: String,
+  // Last modified timestamp for conflict detection
+  lastModified: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 const queueSchema = new mongoose.Schema({
@@ -130,18 +145,89 @@ const queueSchema = new mongoose.Schema({
   avgConsultationTime: {
     type: Number,
     default: 0
-  }
+  },
+  // Version field for optimistic locking
+  version: {
+    type: Number,
+    default: 0
+  },
+  // Idempotency tracking for last operations
+  lastOperationId: String,
+  lastOperationAt: Date
 }, {
-  timestamps: true
+  timestamps: true,
+  optimisticConcurrency: true // Enable Mongoose optimistic concurrency
+});
+
+// Pre-save validation hook
+queueSchema.pre('save', function(next) {
+  // Validate currentIndex is within bounds
+  if (this.currentIndex !== -1) {
+    if (this.currentIndex < 0 || this.currentIndex >= this.entries.length) {
+      return next(new QueueError('Invalid currentIndex: out of bounds', 'INVALID_INDEX'));
+    }
+
+    // Validate currentIndex points to in_consultation patient
+    const currentEntry = this.entries[this.currentIndex];
+    if (currentEntry && currentEntry.status !== 'in_consultation') {
+      // Auto-fix: if patient was completed/skipped, reset currentIndex
+      if (['completed', 'no_show', 'skipped', 'cancelled'].includes(currentEntry.status)) {
+        this.currentIndex = -1;
+        this.currentPatientId = null;
+      }
+    }
+  }
+
+  // Validate no duplicate queue numbers
+  const queueNumbers = this.entries.map(e => e.queueNumber);
+  const uniqueNumbers = new Set(queueNumbers);
+  if (uniqueNumbers.size !== queueNumbers.length) {
+    return next(new QueueError('Duplicate queue numbers detected', 'DUPLICATE_QUEUE_NUMBER'));
+  }
+
+  // Validate counters
+  const actualCompleted = this.entries.filter(e => e.status === 'completed').length;
+  const actualNoShow = this.entries.filter(e => e.status === 'no_show').length;
+
+  // Auto-correct counters if they drift
+  if (this.completedPatients !== actualCompleted) {
+    this.completedPatients = actualCompleted;
+  }
+  if (this.noShowPatients !== actualNoShow) {
+    this.noShowPatients = actualNoShow;
+  }
+
+  // Increment version on every save
+  this.version++;
+
+  next();
+});
+
+// Pre-save hook for entry modifications
+queueEntrySchema.pre('save', function(next) {
+  this.lastModified = new Date();
+  next();
 });
 
 // Compound index for finding queue
 queueSchema.index({ doctorId: 1, date: 1 }, { unique: true });
 queueSchema.index({ hospitalId: 1, date: 1 });
 
-// Method to add patient to queue
+// Method to add patient to queue with atomic queue number assignment
 queueSchema.methods.addPatient = function(appointmentId, patientId, slotTime, urgencyScore = 3) {
-  const queueNumber = this.totalPatients + 1;
+  // Check for duplicate appointment
+  const existingEntry = this.entries.find(
+    e => e.appointmentId?.toString() === appointmentId?.toString()
+  );
+  if (existingEntry) {
+    throw new QueueError('Appointment already in queue', 'DUPLICATE_APPOINTMENT');
+  }
+
+  // Atomically calculate queue number
+  const maxQueueNumber = this.entries.length > 0
+    ? Math.max(...this.entries.map(e => e.queueNumber))
+    : 0;
+  const queueNumber = maxQueueNumber + 1;
 
   this.entries.push({
     appointmentId,
@@ -150,11 +236,71 @@ queueSchema.methods.addPatient = function(appointmentId, patientId, slotTime, ur
     position: this.entries.length + 1,
     slotTime,
     urgencyScore,
-    status: 'waiting'
+    status: 'waiting',
+    lastModified: new Date()
   });
 
   this.totalPatients = queueNumber;
   return queueNumber;
+};
+
+// Method to safely update entry status with conflict detection
+queueSchema.methods.updateEntryStatus = function(entryId, newStatus, additionalFields = {}) {
+  const entryIndex = this.entries.findIndex(
+    e => e._id?.toString() === entryId?.toString()
+  );
+
+  if (entryIndex === -1) {
+    throw new QueueError('Queue entry not found', 'ENTRY_NOT_FOUND', 404);
+  }
+
+  const entry = this.entries[entryIndex];
+
+  // Validate state transitions
+  const validTransitions = {
+    'waiting': ['in_consultation', 'skipped', 'no_show', 'cancelled'],
+    'in_consultation': ['completed', 'skipped', 'no_show'],
+    'skipped': ['waiting', 'in_consultation'], // Can be re-queued
+    'completed': [], // Terminal state
+    'no_show': [], // Terminal state
+    'cancelled': [] // Terminal state
+  };
+
+  const allowedNextStates = validTransitions[entry.status] || [];
+  if (!allowedNextStates.includes(newStatus)) {
+    throw new QueueError(
+      `Invalid status transition: ${entry.status} -> ${newStatus}`,
+      'INVALID_STATE_TRANSITION'
+    );
+  }
+
+  // Update entry
+  entry.status = newStatus;
+  entry.lastModified = new Date();
+  Object.assign(entry, additionalFields);
+
+  return { entryIndex, entry };
+};
+
+// Method to mark appointment as cancelled in queue
+queueSchema.methods.cancelEntry = function(appointmentId, reason = 'Cancelled') {
+  const entry = this.entries.find(
+    e => e.appointmentId?.toString() === appointmentId?.toString()
+  );
+
+  if (!entry) {
+    return null; // Appointment might not be in queue yet
+  }
+
+  if (['completed', 'no_show'].includes(entry.status)) {
+    throw new QueueError('Cannot cancel completed or no-show entries', 'INVALID_CANCEL');
+  }
+
+  entry.status = 'cancelled';
+  entry.notes = reason;
+  entry.lastModified = new Date();
+
+  return entry;
 };
 
 // Method to get next patient
@@ -251,4 +397,7 @@ queueSchema.statics.getHospitalSummary = async function(hospitalId) {
   };
 };
 
-module.exports = mongoose.model('Queue', queueSchema);
+const Queue = mongoose.model('Queue', queueSchema);
+
+module.exports = Queue;
+module.exports.QueueError = QueueError;

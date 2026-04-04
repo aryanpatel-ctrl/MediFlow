@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import MediFlowDataTable from "../components/DataTable";
 import MetricCard from "../components/MetricCard";
+import NoShowRiskCard from "../components/NoShowRiskCard";
+import DoctorAlertsPanel from "../components/DoctorAlertsPanel";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth, useHospitalSettings } from "../hooks";
 import api from "../services/api";
@@ -998,6 +1000,12 @@ function DashboardPage() {
               )}
             </ul>
           </section>
+        </section>
+
+        {/* ML-Powered Dashboard Cards */}
+        <section className="dashboard-alerts-section">
+          <NoShowRiskCard />
+          <DoctorAlertsPanel />
         </section>
       </main>
     </AppLayout>

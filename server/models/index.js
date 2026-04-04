@@ -8,6 +8,8 @@ const Notification = require('./Notification');
 const OTP = require('./OTP');
 const Medicine = require('./Medicine');
 const Prescription = require('./Prescription');
+const Waitlist = require('./Waitlist');
+const NotificationQueue = require('./NotificationQueue');
 
 module.exports = {
   User,
@@ -19,5 +21,7 @@ module.exports = {
   Notification,
   OTP,
   Medicine,
-  Prescription
+  Prescription,
+  Waitlist,
+  NotificationQueue
 };

@@ -5,6 +5,7 @@ const { protect, asyncHandler, AppError } = require('../middleware');
 const slotGenerator = require('../services/slotGenerator');
 const calendarService = require('../services/calendarService');
 const notificationService = require('../services/notificationService');
+const queueManager = require('../services/queueManager');
 
 // @route   POST /api/appointments
 // @desc    Book appointment
@@ -20,14 +21,64 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     bookingSource = 'web_chat'
   } = req.body;
 
+  // Validate required fields
+  if (!doctorId || !date || !slotTime) {
+    throw new AppError('Doctor ID, date, and slot time are required', 400);
+  }
+
+  // Validate date format and not in past
+  const appointmentDate = new Date(date);
+  if (isNaN(appointmentDate.getTime())) {
+    throw new AppError('Invalid date format', 400);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const appointmentDateOnly = new Date(appointmentDate);
+  appointmentDateOnly.setHours(0, 0, 0, 0);
+
+  if (appointmentDateOnly < today) {
+    throw new AppError('Cannot book appointments in the past', 400);
+  }
+
+  // Validate slot time format (HH:MM)
+  if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(slotTime)) {
+    throw new AppError('Invalid slot time format. Use HH:MM', 400);
+  }
+
+  // Validate not booking too far in future (max 60 days)
+  const maxFutureDate = new Date(today);
+  maxFutureDate.setDate(maxFutureDate.getDate() + 60);
+  if (appointmentDateOnly > maxFutureDate) {
+    throw new AppError('Cannot book appointments more than 60 days in advance', 400);
+  }
+
   const doctor = await Doctor.findById(doctorId);
 
   if (!doctor) {
     throw new AppError('Doctor not found', 404);
   }
 
-  // Verify slot is available
-  const availableSlots = await slotGenerator.getAvailableSlots(doctor, new Date(date));
+  // CHECK: Prevent same patient booking multiple appointments with same doctor on same day
+  const existingPatientAppointment = await Appointment.findOne({
+    patientId: req.user.id,
+    doctorId,
+    date: {
+      $gte: appointmentDateOnly,
+      $lt: new Date(appointmentDateOnly.getTime() + 24 * 60 * 60 * 1000)
+    },
+    status: { $nin: ['cancelled', 'no_show', 'rescheduled'] }
+  });
+
+  if (existingPatientAppointment) {
+    throw new AppError(
+      `You already have an appointment with this doctor on ${appointmentDateOnly.toLocaleDateString()}. Please cancel the existing appointment first or choose a different date.`,
+      400
+    );
+  }
+
+  // Verify slot is available (check)
+  const availableSlots = await slotGenerator.getAvailableSlots(doctor, appointmentDate);
   const isSlotAvailable = availableSlots.some(
     slot => slot.time === slotTime && slot.available
   );
@@ -36,43 +87,73 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     throw new AppError('Selected slot is no longer available', 400);
   }
 
-  // Get ML predictions
-  let predictedNoShowProbability = 0;
-  let predictedDuration = doctor.slotDuration;
+  // ATOMIC BOOKING: Use findOneAndUpdate to prevent race condition
+  // Try to create appointment only if no existing appointment for this slot
+  const mongoose = require('mongoose');
+  const session = await mongoose.startSession();
 
+  let appointment;
   try {
-    const mlService = require('../services/mlService');
-    const predictions = await mlService.getPredictions(req.user.id, triageData);
-    predictedNoShowProbability = predictions.noShowProbability;
-    predictedDuration = predictions.duration;
-  } catch (err) {
-    console.log('ML prediction failed, using defaults');
+    session.startTransaction();
+
+    // Double-check slot availability with lock (atomic check)
+    const existingAppointment = await Appointment.findOne({
+      doctorId,
+      date: {
+        $gte: appointmentDateOnly,
+        $lt: new Date(appointmentDateOnly.getTime() + 24 * 60 * 60 * 1000)
+      },
+      slotTime,
+      status: { $nin: ['cancelled', 'no_show', 'rescheduled'] }
+    }).session(session);
+
+    if (existingAppointment) {
+      await session.abortTransaction();
+      throw new AppError('This slot was just booked by another patient. Please select a different time.', 409);
+    }
+
+    // Get ML predictions
+    let predictedNoShowProbability = 0;
+    let predictedDuration = doctor.slotDuration;
+
+    try {
+      const mlService = require('../services/mlService');
+      const predictions = await mlService.getPredictions(req.user.id, triageData);
+      predictedNoShowProbability = predictions.noShowProbability;
+      predictedDuration = predictions.duration;
+    } catch (err) {
+      console.log('ML prediction failed, using defaults');
+    }
+
+    // Create appointment within transaction
+    const appointments = await Appointment.create([{
+      patientId: req.user.id,
+      doctorId,
+      hospitalId: doctor.hospitalId,
+      date: appointmentDate,
+      slotTime,
+      slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+      appointmentType: appointmentType || 'Consultation',
+      status: 'booked',
+      bookingSource,
+      triageData,
+      chatSessionId,
+      predictedNoShowProbability,
+      predictedDuration
+    }], { session });
+
+    appointment = appointments[0];
+
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
 
-  // Create appointment
-  const appointment = await Appointment.create({
-    patientId: req.user.id,
-    doctorId,
-    hospitalId: doctor.hospitalId,
-    date: new Date(date),
-    slotTime,
-    slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
-    appointmentType: appointmentType || 'Consultation',
-    status: 'booked',
-    bookingSource,
-    triageData,
-    chatSessionId,
-    predictedNoShowProbability,
-    predictedDuration
-  });
-
-  // Add to queue
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const appointmentDate = new Date(date);
-  appointmentDate.setHours(0, 0, 0, 0);
-
-  if (appointmentDate.getTime() === today.getTime()) {
+  // Add to queue if it's today's appointment
+  if (appointmentDateOnly.getTime() === today.getTime()) {
     // Today's appointment - add to queue immediately
     let queue = await Queue.findOne({
       doctorId,
@@ -189,10 +270,57 @@ router.get('/', protect, asyncHandler(async (req, res) => {
   });
 }));
 
+// @route   GET /api/appointments/my
+// @desc    Get current user's appointments (alias for /)
+// @access  Private
+router.get('/my', protect, asyncHandler(async (req, res) => {
+  const { status, upcoming, date } = req.query;
+
+  const query = { patientId: req.user.id };
+
+  if (status) {
+    query.status = status;
+  }
+
+  if (upcoming === 'true') {
+    query.date = { $gte: new Date() };
+    query.status = { $nin: ['cancelled', 'completed', 'no_show'] };
+  }
+
+  if (date) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    query.date = { $gte: startOfDay, $lte: endOfDay };
+  }
+
+  const appointments = await Appointment.find(query)
+    .populate({
+      path: 'doctorId',
+      select: 'specialty consultationFee slotDuration',
+      populate: { path: 'userId', select: 'name' }
+    })
+    .populate('hospitalId', 'name address')
+    .sort({ date: -1, slotTime: 1 });
+
+  res.status(200).json({
+    success: true,
+    count: appointments.length,
+    appointments
+  });
+}));
+
 // @route   GET /api/appointments/:id
 // @desc    Get appointment by ID
 // @access  Private
 router.get('/:id', protect, asyncHandler(async (req, res) => {
+  // Validate ObjectId format to avoid CastError
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    throw new AppError('Invalid appointment ID format', 400);
+  }
+
   const appointment = await Appointment.findById(req.params.id)
     .populate({
       path: 'doctorId',
@@ -319,9 +447,10 @@ router.put('/:id/check-in', protect, asyncHandler(async (req, res) => {
 // @desc    Cancel appointment
 // @access  Private
 router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
-  const { reason } = req.body;
+  const { reason, tryFillSlot = true } = req.body;
 
-  const appointment = await Appointment.findById(req.params.id);
+  const appointment = await Appointment.findById(req.params.id)
+    .populate('doctorId', 'name');
 
   if (!appointment) {
     throw new AppError('Appointment not found', 404);
@@ -337,11 +466,45 @@ router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
     throw new AppError(`Cannot cancel appointment with status: ${appointment.status}`, 400);
   }
 
-  appointment.status = 'cancelled';
-  appointment.cancellationReason = reason;
-  appointment.cancelledBy = req.user.role === 'patient' ? 'patient' :
-                            req.user.role === 'doctor' ? 'doctor' : 'hospital';
-  await appointment.save();
+  // Check if this is today's appointment - need to update queue
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const appointmentDate = new Date(appointment.date);
+  appointmentDate.setHours(0, 0, 0, 0);
+  const isToday = appointmentDate.getTime() === today.getTime();
+
+  // Cancel appointment in queue if it's today's appointment
+  let queueSummary = null;
+  let slotRecoveryResult = null;
+
+  if (isToday) {
+    try {
+      const queueResult = await queueManager.cancelAppointmentInQueue(
+        appointment._id,
+        reason || 'Cancelled by ' + (req.user.role === 'patient' ? 'patient' : 'staff')
+      );
+      queueSummary = queueResult.summary;
+
+      // Try to fill the slot from waitlist
+      if (tryFillSlot) {
+        const slotRecoveryService = require('../services/slotRecoveryService');
+        slotRecoveryResult = await slotRecoveryService.tryFillSlotFromWaitlist(
+          appointment.doctorId._id || appointment.doctorId,
+          appointment.slotTime,
+          appointment.date
+        );
+      }
+    } catch (queueError) {
+      console.error('Queue update failed (non-critical):', queueError.message);
+    }
+  } else {
+    // Future appointment - just mark as cancelled
+    appointment.status = 'cancelled';
+    appointment.cancellationReason = reason;
+    appointment.cancelledBy = req.user.role === 'patient' ? 'patient' :
+                              req.user.role === 'doctor' ? 'doctor' : 'hospital';
+    await appointment.save();
+  }
 
   // Update user stats
   await User.findByIdAndUpdate(appointment.patientId, {
@@ -374,10 +537,37 @@ router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
     console.error('Cancellation email failed:', err.message);
   });
 
+  // Emit real-time socket events
+  const io = req.app.get('io');
+  if (io && isToday) {
+    // Notify queue displays to refresh
+    io.to(`queue:${appointment.doctorId._id || appointment.doctorId}`).emit('queue:update', {
+      action: 'appointment_cancelled',
+      appointmentId: appointment._id,
+      slotTime: appointment.slotTime,
+      summary: queueSummary
+    });
+
+    // Notify hospital dashboard
+    io.to(`hospital:${appointment.hospitalId}`).emit('appointment:cancelled', {
+      appointmentId: appointment._id,
+      doctorId: appointment.doctorId._id || appointment.doctorId,
+      slotTime: appointment.slotTime,
+      slotRecovered: slotRecoveryResult?.success || false
+    });
+  }
+
   res.status(200).json({
     success: true,
     message: 'Appointment cancelled',
-    appointment
+    appointment,
+    queueSummary,
+    slotRecovery: slotRecoveryResult ? {
+      attempted: true,
+      success: slotRecoveryResult.success,
+      reason: slotRecoveryResult.reason,
+      patientNotified: slotRecoveryResult.patientName
+    } : null
   });
 }));
 
@@ -839,14 +1029,53 @@ router.post('/manual', protect, asyncHandler(async (req, res) => {
     throw new AppError('Patient, doctor, date and time slot are required', 400);
   }
 
+  // Validate date not in past
+  const appointmentDate = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const appointmentDateOnly = new Date(appointmentDate);
+  appointmentDateOnly.setHours(0, 0, 0, 0);
+
+  if (appointmentDateOnly < today) {
+    throw new AppError('Cannot book appointments in the past', 400);
+  }
+
+  // Validate slot time format
+  if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(slotTime)) {
+    throw new AppError('Invalid slot time format. Use HH:MM', 400);
+  }
+
   const doctor = await Doctor.findById(doctorId);
   if (!doctor) {
     throw new AppError('Doctor not found', 404);
   }
 
+  // SECURITY: Verify doctor belongs to the admin's hospital
+  if (doctor.hospitalId.toString() !== req.user.hospitalId?.toString()) {
+    throw new AppError('You can only book appointments for doctors in your hospital', 403);
+  }
+
   const patient = await User.findById(patientId);
   if (!patient) {
     throw new AppError('Patient not found', 404);
+  }
+
+  // CHECK: Prevent same patient booking multiple appointments with same doctor on same day
+  const existingPatientAppointment = await Appointment.findOne({
+    patientId,
+    doctorId,
+    date: {
+      $gte: appointmentDateOnly,
+      $lt: new Date(appointmentDateOnly.getTime() + 24 * 60 * 60 * 1000)
+    },
+    status: { $nin: ['cancelled', 'no_show', 'rescheduled'] }
+  });
+
+  if (existingPatientAppointment) {
+    throw new AppError(
+      `This patient already has an appointment with this doctor on ${appointmentDateOnly.toLocaleDateString()}. Please cancel the existing appointment first or choose a different date.`,
+      400
+    );
   }
 
   // Verify slot is available
@@ -878,12 +1107,7 @@ router.post('/manual', protect, asyncHandler(async (req, res) => {
   });
 
   // Add to queue if today's appointment
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const appointmentDate = new Date(date);
-  appointmentDate.setHours(0, 0, 0, 0);
-
-  if (appointmentDate.getTime() === today.getTime()) {
+  if (appointmentDateOnly.getTime() === today.getTime()) {
     let queue = await Queue.findOne({
       doctorId,
       date: today

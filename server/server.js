@@ -75,6 +75,7 @@ const PORT = process.env.PORT || 5000;
 
 // Initialize schedulers for auto no-show detection
 const schedulerService = require('./services/schedulerService');
+const notificationProcessor = require('./services/notificationProcessor');
 
 server.listen(PORT, () => {
   console.log(`
@@ -93,6 +94,12 @@ server.listen(PORT, () => {
       noShowIntervalMinutes: parseInt(process.env.NO_SHOW_CHECK_INTERVAL) || 5,
       highRiskIntervalMinutes: parseInt(process.env.HIGH_RISK_CHECK_INTERVAL) || 30
     });
+  }
+
+  // Start reliable notification processor
+  if (process.env.ENABLE_NOTIFICATION_PROCESSOR !== 'false') {
+    notificationProcessor.startProcessor(5000); // Process every 5 seconds
+    console.log('Notification processor started (5s interval)');
   }
 });
 
