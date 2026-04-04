@@ -88,6 +88,27 @@ const appointmentSchema = new mongoose.Schema({
     default: 0
   },
   rescheduleReason: String,
+  rescheduleRequest: {
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: null
+    },
+    requestedDate: Date,
+    requestedSlotTime: String,
+    reason: String,
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    requestedAt: Date,
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    responseNote: String
+  },
   // Cancellation
   cancellationReason: String,
   cancelledBy: {

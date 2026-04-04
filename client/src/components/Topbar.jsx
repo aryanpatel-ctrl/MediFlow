@@ -1,5 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Search, Settings, Menu, Check, X } from "lucide-react";
+import {
+  BellDot,
+  Search,
+  Settings,
+  Menu,
+  Check,
+  CalendarCheck2,
+  CalendarX2,
+  Info,
+  Clock3,
+  Stethoscope,
+  BellRing,
+} from "lucide-react";
 import { useAuth } from "../hooks";
 import api from "../services/api";
 
@@ -23,13 +35,21 @@ const formatTimeAgo = (date) => {
 
 const getNotificationIcon = (type) => {
   switch (type) {
-    case 'queue_started': return '▶️';
-    case 'your_turn': return '📢';
-    case 'patient_checked_in': return '👋';
-    case 'consultation_completed': return '✅';
-    case 'delay_notification': return '⏰';
-    case 'appointment_reminder': return '📅';
-    default: return '🔔';
+    case 'appointment_booked':
+    case 'appointment_confirmed':
+    case 'appointment_rescheduled':
+    case 'appointment_reminder':
+      return CalendarCheck2;
+    case 'appointment_cancelled':
+      return CalendarX2;
+    case 'delay_notification':
+      return Clock3;
+    case 'your_turn':
+      return BellRing;
+    case 'patient_checked_in':
+      return Stethoscope;
+    default:
+      return Info;
   }
 };
 
@@ -130,7 +150,7 @@ function Topbar({ title, subtitle, onMenuClick }) {
             onClick={toggleNotifications}
             style={{ position: 'relative' }}
           >
-            <Bell size={15} strokeWidth={2} />
+            <BellDot size={15} strokeWidth={2} />
             {unreadCount > 0 && (
               <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
             )}
@@ -139,19 +159,28 @@ function Topbar({ title, subtitle, onMenuClick }) {
           {showNotifications && (
             <div className="notification-dropdown">
               <div className="notification-header">
-                <h3>Notifications</h3>
-                {unreadCount > 0 && (
-                  <button onClick={markAllAsRead} className="mark-all-read">
-                    <Check size={14} /> Mark all read
-                  </button>
-                )}
+                <div>
+                  <h3>Notifications</h3>
+                  <p>{unreadCount > 0 ? `${unreadCount} unread updates` : "You're all caught up"}</p>
+                </div>
+                <div className="notification-header__actions">
+                  {unreadCount > 0 && (
+                    <button onClick={markAllAsRead} className="mark-all-read" type="button">
+                      <Check size={14} /> Mark all read
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="notification-list">
                 {loading ? (
                   <div className="notification-loading">Loading...</div>
                 ) : notifications.length === 0 ? (
-                  <div className="notification-empty">No notifications</div>
+                  <div className="notification-empty">
+                    <span className="notification-empty__icon">🔔</span>
+                    <strong>No notifications</strong>
+                    <p>New updates about bookings and queue activity will appear here.</p>
+                  </div>
                 ) : (
                   notifications.map(notification => (
                     <div
@@ -159,7 +188,12 @@ function Topbar({ title, subtitle, onMenuClick }) {
                       className={`notification-item ${!notification.isRead ? 'unread' : ''}`}
                       onClick={() => !notification.isRead && markAsRead(notification._id)}
                     >
-                      <span className="notification-icon">{getNotificationIcon(notification.type)}</span>
+                      <span className="notification-icon">
+                        {(() => {
+                          const Icon = getNotificationIcon(notification.type);
+                          return <Icon size={18} strokeWidth={2} />;
+                        })()}
+                      </span>
                       <div className="notification-content">
                         <strong>{notification.title}</strong>
                         <p>{notification.message}</p>

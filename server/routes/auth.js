@@ -1,7 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const { User, OTP } = require('../models');
+const { User, OTP, Hospital } = require('../models');
 const { protect, generateToken, asyncHandler, AppError } = require('../middleware');
+
+async function ensurePatientHospital(user) {
+  if (!user || user.role !== 'patient' || user.hospitalId) {
+    return user;
+  }
+
+  const defaultHospital = await Hospital.findOne({ isActive: true }).select('_id name slug');
+  if (!defaultHospital) {
+    return user;
+  }
+
+  user.hospitalId = defaultHospital._id;
+  await user.save();
+  await user.populate('hospitalId', 'name slug');
+
+  return user;
+}
 
 // @route   POST /api/auth/send-otp
 // @desc    Send OTP for registration/login
@@ -81,7 +98,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   }
 
   // Create user
-  const user = await User.create({
+  let user = await User.create({
     name,
     email,
     phone,
@@ -91,6 +108,8 @@ router.post('/register', asyncHandler(async (req, res) => {
     isVerified: true,
     role: 'patient'
   });
+
+  user = await ensurePatientHospital(user);
 
   // Generate token
   const token = generateToken(user._id);
@@ -104,7 +123,8 @@ router.post('/register', asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role
+      role: user.role,
+      hospitalId: user.hospitalId
     }
   });
 }));
@@ -120,11 +140,13 @@ router.post('/login', asyncHandler(async (req, res) => {
   }
 
   // Find user
-  const user = await User.findOne({ email }).select('+password');
+  let user = await User.findOne({ email }).select('+password');
 
   if (!user || !(await user.comparePassword(password))) {
     throw new AppError('Invalid credentials', 401);
   }
+
+  user = await ensurePatientHospital(user);
 
   // Generate token
   const token = generateToken(user._id);
@@ -147,7 +169,8 @@ router.post('/login', asyncHandler(async (req, res) => {
 // @desc    Get current user
 // @access  Private
 router.get('/me', protect, asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).populate('hospitalId', 'name slug');
+  let user = await User.findById(req.user.id).populate('hospitalId', 'name slug');
+  user = await ensurePatientHospital(user);
 
   res.status(200).json({
     success: true,
