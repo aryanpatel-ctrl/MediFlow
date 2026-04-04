@@ -260,7 +260,7 @@ function CalendarPage() {
               </div>
               <button className="calendar-new-agenda-btn" type="button" onClick={jumpToToday}>
                 <Plus size={16} />
-                <span>New Agenda</span>
+                <span>Go to Today</span>
               </button>
             </div>
           </div>

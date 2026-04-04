@@ -75,6 +75,15 @@ function PatientDetailsPage() {
     });
   };
 
+  const formatAddress = (address) => {
+    if (!address) return "";
+    if (typeof address === "string") return address;
+
+    return [address.street, address.city, address.state, address.pincode]
+      .filter(Boolean)
+      .join(", ");
+  };
+
   const getStatusClass = (status) => {
     switch (status?.toLowerCase()) {
       case "completed": return "completed";
@@ -181,6 +190,7 @@ function PatientDetailsPage() {
   const patientCode = `#PT-${String(patient._id?.slice(-6) || "000000").toUpperCase()}`;
   const age = calculateAge(patient.dateOfBirth);
   const gender = patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : "--";
+  const addressText = formatAddress(patient.address);
 
   // Stats
   const completedAppointments = appointments.filter(a => a.status === "completed").length;
@@ -211,8 +221,8 @@ function PatientDetailsPage() {
                   {patient.email && (
                     <span><Mail size={14} /> {patient.email}</span>
                   )}
-                  {patient.address && (
-                    <span><MapPin size={14} /> {patient.address}</span>
+                  {addressText && (
+                    <span><MapPin size={14} /> {addressText}</span>
                   )}
                 </div>
               </div>

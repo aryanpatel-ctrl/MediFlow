@@ -130,6 +130,26 @@ function MediFlowDataTable({
   const [toggleCleared, setToggleCleared] = useState(false);
   const hasSubHeader = searchable || Boolean(actions);
 
+  const normalizedColumns = useMemo(
+    () =>
+      columns.map((column) => {
+        const { minWidth, style, ...restColumn } = column;
+
+        if (!minWidth) {
+          return column;
+        }
+
+        return {
+          ...restColumn,
+          style: {
+            ...style,
+            minWidth,
+          },
+        };
+      }),
+    [columns]
+  );
+
   // Filter data based on search text
   const filteredData = useMemo(() => {
     if (!searchText) return data;
@@ -223,7 +243,7 @@ function MediFlowDataTable({
       <DataTable
         title={title}
         noHeader={!title}
-        columns={columns}
+        columns={normalizedColumns}
         data={filteredData}
         customStyles={customStyles}
         progressPending={loading}

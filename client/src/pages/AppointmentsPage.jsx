@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, Calendar, X } from "lucide-react";
+import { Eye, Calendar, Search, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import { useAuth, useHospitalSettings } from "../hooks";
 import api from "../services/api";
@@ -260,6 +260,7 @@ function AppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState("upcoming");
+  const [searchText, setSearchText] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -356,6 +357,26 @@ function AppointmentsPage() {
     }
   };
   const filteredAppointments = getFilteredAppointments();
+  const searchedAppointments = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+
+    if (!query) {
+      return filteredAppointments;
+    }
+
+    return filteredAppointments.filter((appointment) => {
+      const values = [
+        appointment.patientId?.name,
+        appointment.patientId?.phone,
+        appointment.doctorName,
+        appointment.appointmentType,
+        appointment.status,
+        formatAppointmentStatus(appointment.status),
+      ];
+
+      return values.some((value) => String(value || "").toLowerCase().includes(query));
+    });
+  }, [filteredAppointments, searchText]);
 
   // Stats based on filtered data
   const filteredStats = countAppointmentStats(filteredAppointments);
@@ -832,32 +853,52 @@ function AppointmentsPage() {
 
         <section className="appointment-table-section">
           <MediFlowDataTable
+            className="appointments-datatable"
             title={
-              <div className="datatable-title">
-                <h2>Appointments</h2>
-                <p>{filteredAppointments.length} appointments - {getFilterLabel()}</p>
+              <div className="appointments-table-toolbar">
+                <div className="datatable-title">
+                  <h2>Appointments</h2>
+                  <p>{searchedAppointments.length} appointments - {getFilterLabel()}</p>
+                </div>
+                <div className="datatable-search appointments-table-search">
+                  <Search size={18} className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    className="search-input"
+                  />
+                  {searchText && (
+                    <button
+                      className="search-clear"
+                      onClick={() => setSearchText("")}
+                      type="button"
+                      aria-label="Clear search"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+                <button
+                  className="btn-primary appointments-table-add-button"
+                  onClick={() => setShowAddModal(true)}
+                  type="button"
+                >
+                  <span>+</span> Add Appointment
+                </button>
               </div>
             }
             columns={tableColumns}
-            data={filteredAppointments}
+            data={searchedAppointments}
             loading={loading}
             selectableRows={true}
             onBulkDelete={handleBulkDelete}
-            searchable={true}
-            searchFields={["patientId.name", "patientId.phone", "doctorName", "appointmentType", "status"]}
+            searchable={false}
             pagination={true}
             paginationPerPage={10}
             paginationRowsPerPageOptions={[10, 25, 50, 100]}
             noDataMessage={`No appointments found for ${getFilterLabel().toLowerCase()}`}
-            actions={
-              <button
-                className="btn-primary"
-                onClick={() => setShowAddModal(true)}
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <span>+</span> Add Appointment
-              </button>
-            }
           />
         </section>
 
