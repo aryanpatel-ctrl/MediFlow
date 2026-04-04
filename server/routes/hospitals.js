@@ -1,8 +1,60 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const sharp = require('sharp');
 const { Hospital, User, Doctor } = require('../models');
 const { protect, authorize, optionalAuth, asyncHandler, AppError, generateToken } = require('../middleware');
 const calendarService = require('../services/calendarService');
+const { uploadBuffer } = require('../services/cloudinaryService');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      cb(new AppError('Only image files are allowed', 400));
+      return;
+    }
+
+    cb(null, true);
+  }
+});
+
+const parseJsonField = (value, fallback = undefined) => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return value;
+  }
+};
+
+const saveHospitalLogo = async (file) => {
+  if (!file) {
+    return null;
+  }
+
+  const processedBuffer = await sharp(file.buffer)
+    .rotate()
+    .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+    .png({ quality: 84, compressionLevel: 9 })
+    .toBuffer();
+
+  const result = await uploadBuffer(processedBuffer, {
+    folder: 'mediflow/hospitals',
+    resource_type: 'image',
+    format: 'png',
+  });
+
+  return result.secure_url;
+};
 
 // ========================================
 // HOSPITAL ONBOARDING ROUTES
@@ -11,7 +63,7 @@ const calendarService = require('../services/calendarService');
 // @route   POST /api/hospitals/onboard
 // @desc    Complete hospital onboarding (all steps at once)
 // @access  Public (self-registration)
-router.post('/onboard', asyncHandler(async (req, res) => {
+router.post('/onboard', upload.single('logo'), asyncHandler(async (req, res) => {
   const {
     // Step 1: Basic Details
     name,
@@ -20,17 +72,19 @@ router.post('/onboard', asyncHandler(async (req, res) => {
     email,
     phone,
     website,
-    address,
+    address: rawAddress,
     logo,
     // Step 2: Operations
-    operatingHours,
+    operatingHours: rawOperatingHours,
     emergency24x7,
-    specialties,
+    specialties: rawSpecialties,
+    appointmentTypes: rawAppointmentTypes,
+    inventoryCategories: rawInventoryCategories,
     // Step 3: Configuration
     defaultSlotDuration,
     maxPatientsPerSlot,
-    queueSettings,
-    features,
+    queueSettings: rawQueueSettings,
+    features: rawFeatures,
     emergencySlotsPerDoctor,
     // Step 4: Admin Account
     adminName,
@@ -38,6 +92,15 @@ router.post('/onboard', asyncHandler(async (req, res) => {
     adminPhone,
     adminPassword
   } = req.body;
+
+  const address = parseJsonField(rawAddress, rawAddress);
+  const operatingHours = parseJsonField(rawOperatingHours, rawOperatingHours);
+  const specialties = parseJsonField(rawSpecialties, rawSpecialties);
+  const appointmentTypes = parseJsonField(rawAppointmentTypes, rawAppointmentTypes);
+  const inventoryCategories = parseJsonField(rawInventoryCategories, rawInventoryCategories);
+  const queueSettings = parseJsonField(rawQueueSettings, rawQueueSettings);
+  const features = parseJsonField(rawFeatures, rawFeatures);
+  const logoUrl = req.file ? await saveHospitalLogo(req.file) : logo;
 
   // Check if hospital email already exists
   const existingHospital = await Hospital.findOne({ email });
@@ -70,7 +133,7 @@ router.post('/onboard', asyncHandler(async (req, res) => {
     phone,
     website,
     address,
-    logo,
+    logo: logoUrl,
     operatingHours: operatingHours || {
       monday: { open: '09:00', close: '18:00', isOpen: true },
       tuesday: { open: '09:00', close: '18:00', isOpen: true },
@@ -82,6 +145,8 @@ router.post('/onboard', asyncHandler(async (req, res) => {
     },
     emergency24x7: emergency24x7 || false,
     specialties: specialties || ['General Medicine'],
+    appointmentTypes: appointmentTypes || ['Consultation', 'Follow-up', 'Surgery', 'Telemedicine'],
+    inventoryCategories: inventoryCategories || ['Medicines', 'Equipment', 'Supplies'],
     defaultSlotDuration: defaultSlotDuration || 15,
     maxPatientsPerSlot: maxPatientsPerSlot || 1,
     queueSettings: queueSettings || {},
@@ -127,8 +192,9 @@ router.post('/onboard', asyncHandler(async (req, res) => {
 // @route   PUT /api/hospitals/:id/onboard/step
 // @desc    Save onboarding step data (for step-by-step flow)
 // @access  Private/HospitalAdmin
-router.put('/:id/onboard/step', protect, asyncHandler(async (req, res) => {
+router.put('/:id/onboard/step', protect, upload.single('logo'), asyncHandler(async (req, res) => {
   const { step, data } = req.body;
+  const stepData = parseJsonField(data, data) || {};
 
   const hospital = await Hospital.findById(req.params.id);
   if (!hospital) {
@@ -139,30 +205,32 @@ router.put('/:id/onboard/step', protect, asyncHandler(async (req, res) => {
   switch (step) {
     case 1: // Basic Details
       Object.assign(hospital, {
-        name: data.name,
-        type: data.type,
-        registrationNumber: data.registrationNumber,
-        email: data.email,
-        phone: data.phone,
-        website: data.website,
-        address: data.address,
-        logo: data.logo
+        name: stepData.name,
+        type: stepData.type,
+        registrationNumber: stepData.registrationNumber,
+        email: stepData.email,
+        phone: stepData.phone,
+        website: stepData.website,
+        address: stepData.address,
+        logo: req.file ? await saveHospitalLogo(req.file) : stepData.logo
       });
       break;
     case 2: // Operations
       Object.assign(hospital, {
-        operatingHours: data.operatingHours,
-        emergency24x7: data.emergency24x7,
-        specialties: data.specialties
+        operatingHours: stepData.operatingHours,
+        emergency24x7: stepData.emergency24x7,
+        specialties: stepData.specialties,
+        appointmentTypes: stepData.appointmentTypes,
+        inventoryCategories: stepData.inventoryCategories
       });
       break;
     case 3: // Configuration
       Object.assign(hospital, {
-        defaultSlotDuration: data.defaultSlotDuration,
-        maxPatientsPerSlot: data.maxPatientsPerSlot,
-        queueSettings: data.queueSettings,
-        features: data.features,
-        emergencySlotsPerDoctor: data.emergencySlotsPerDoctor
+        defaultSlotDuration: stepData.defaultSlotDuration,
+        maxPatientsPerSlot: stepData.maxPatientsPerSlot,
+        queueSettings: stepData.queueSettings,
+        features: stepData.features,
+        emergencySlotsPerDoctor: stepData.emergencySlotsPerDoctor
       });
       break;
     case 4: // Complete
@@ -415,7 +483,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 // @route   PUT /api/hospitals/:id
 // @desc    Update hospital
 // @access  Private/HospitalAdmin
-router.put('/:id', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+router.put('/:id', protect, authorize('hospital_admin'), upload.single('logo'), asyncHandler(async (req, res) => {
   let hospital = await Hospital.findById(req.params.id);
 
   if (!hospital) {
@@ -429,7 +497,8 @@ router.put('/:id', protect, authorize('hospital_admin'), asyncHandler(async (req
   }
 
   const allowedFields = [
-    'name', 'type', 'phone', 'website', 'address', 'specialties', 'operatingHours',
+    'name', 'type', 'phone', 'website', 'address', 'specialties', 'appointmentTypes',
+    'inventoryCategories', 'operatingHours',
     'defaultSlotDuration', 'maxPatientsPerSlot', 'queueSettings', 'features',
     'logo', 'primaryColor', 'emergency24x7', 'emergencySlotsPerDoctor'
   ];
@@ -440,6 +509,17 @@ router.put('/:id', protect, authorize('hospital_admin'), asyncHandler(async (req
       updates[field] = req.body[field];
     }
   });
+
+  ['address', 'specialties', 'appointmentTypes', 'inventoryCategories', 'operatingHours', 'queueSettings', 'features']
+    .forEach((field) => {
+      if (updates[field] !== undefined) {
+        updates[field] = parseJsonField(updates[field], updates[field]);
+      }
+    });
+
+  if (req.file) {
+    updates.logo = await saveHospitalLogo(req.file);
+  }
 
   hospital = await Hospital.findByIdAndUpdate(req.params.id, updates, {
     new: true,

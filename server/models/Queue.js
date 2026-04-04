@@ -37,6 +37,17 @@ const queueEntrySchema = new mongoose.Schema({
     max: 5,
     default: 3
   },
+  // ML predictions
+  noShowProbability: {
+    type: Number,
+    min: 0,
+    max: 1,
+    default: null
+  },
+  predictedDuration: {
+    type: Number,
+    default: null
+  },
   // For dynamic reordering
   priorityBoost: {
     type: Number,
@@ -203,6 +214,40 @@ queueSchema.methods.getSummary = function() {
     noShow: this.noShowPatients,
     currentDelay: this.currentDelay,
     avgWaitTime: this.avgWaitTime
+  };
+};
+
+// Static method to get hospital-wide summary
+queueSchema.statics.getHospitalSummary = async function(hospitalId) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const queues = await this.find({
+    hospitalId,
+    date: today
+  });
+
+  let totalPatients = 0;
+  let totalWaiting = 0;
+  let totalInProgress = 0;
+  let totalCompleted = 0;
+  let totalNoShow = 0;
+
+  queues.forEach(queue => {
+    totalPatients += queue.totalPatients;
+    totalWaiting += queue.entries.filter(e => e.status === 'waiting').length;
+    totalInProgress += queue.entries.filter(e => e.status === 'in_consultation').length;
+    totalCompleted += queue.entries.filter(e => e.status === 'completed').length;
+    totalNoShow += queue.entries.filter(e => e.status === 'no_show').length;
+  });
+
+  return {
+    totalPatients,
+    totalWaiting,
+    totalInProgress,
+    totalCompleted,
+    totalNoShow,
+    totalQueues: queues.length
   };
 };
 

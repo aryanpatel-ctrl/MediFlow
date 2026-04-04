@@ -53,6 +53,7 @@ const userSchema = new mongoose.Schema({
     phone: String,
     relation: String
   },
+  avatar: String,
   // Stats for ML model
   totalAppointments: {
     type: Number,

@@ -1,8 +1,108 @@
 const express = require('express');
 const router = express.Router();
-const { Queue, Appointment, Notification } = require('../models');
+const { Queue, Appointment, Notification, Doctor, User } = require('../models');
 const { protect, authorize, asyncHandler, AppError } = require('../middleware');
 const queueManager = require('../services/queueManager');
+const { sendPushNotification } = require('../services/notificationService');
+
+// @route   GET /api/queue/hospital/:hospitalId/summary
+// @desc    Get hospital-wide queue summary for dashboard
+// @access  Private/Hospital Admin
+router.get('/hospital/:hospitalId/summary', protect, authorize('hospital_admin', 'doctor'), asyncHandler(async (req, res) => {
+  const summary = await Queue.getHospitalSummary(req.params.hospitalId);
+
+  res.status(200).json({
+    success: true,
+    summary
+  });
+}));
+
+// @route   GET /api/queue/hospital/:hospitalId/all-queues
+// @desc    Get all doctor queues for a hospital
+// @access  Private/Hospital Admin
+router.get('/hospital/:hospitalId/all-queues', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const queues = await Queue.find({
+    hospitalId: req.params.hospitalId,
+    date: today
+  })
+    .populate({
+      path: 'doctorId',
+      populate: { path: 'userId', select: 'name email phone' }
+    })
+    .populate('entries.patientId', 'name phone email')
+    .populate('entries.appointmentId', 'scheduledTime type reason');
+
+  const formattedQueues = queues.map(queue => ({
+    _id: queue._id,
+    doctorId: queue.doctorId._id,
+    doctorName: queue.doctorId.userId?.name || 'Unknown',
+    specialty: queue.doctorId.specialty,
+    status: queue.status,
+    currentDelay: queue.currentDelay,
+    entries: queue.entries.map(entry => ({
+      _id: entry._id,
+      queueNumber: entry.queueNumber,
+      patientId: entry.patientId?._id || entry.patientId,
+      patientName: entry.patientId?.name || 'Unknown',
+      patientPhone: entry.patientId?.phone || '',
+      status: entry.status,
+      slotTime: entry.slotTime,
+      checkInTime: entry.checkInTime,
+      urgencyScore: entry.urgencyScore,
+      appointmentType: entry.appointmentId?.type,
+      reason: entry.appointmentId?.reason
+    })),
+    summary: queue.getSummary()
+  }));
+
+  res.status(200).json({
+    success: true,
+    queues: formattedQueues
+  });
+}));
+
+// @route   POST /api/queue/hospital/:hospitalId/initialize
+// @desc    Initialize queues for all doctors for today
+// @access  Private/Hospital Admin
+router.post('/hospital/:hospitalId/initialize', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get all active doctors in the hospital
+  const doctors = await Doctor.find({
+    hospitalId: req.params.hospitalId,
+    isActive: true
+  });
+
+  const initializedQueues = [];
+
+  for (const doctor of doctors) {
+    const existingQueue = await Queue.findOne({
+      doctorId: doctor._id,
+      date: today
+    });
+
+    if (!existingQueue) {
+      const queue = await Queue.create({
+        doctorId: doctor._id,
+        hospitalId: req.params.hospitalId,
+        date: today,
+        status: 'not_started',
+        entries: []
+      });
+      initializedQueues.push(queue);
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Initialized ${initializedQueues.length} new queues`,
+    totalDoctors: doctors.length
+  });
+}));
 
 // @route   GET /api/queue/:doctorId/today
 // @desc    Get today's queue for a doctor
@@ -70,11 +170,69 @@ router.get('/:doctorId/patient-status', protect, asyncHandler(async (req, res) =
   });
 }));
 
+// @route   PUT /api/queue/:doctorId/start
+// @desc    Start queue for the day
+// @access  Private/Doctor
+router.put('/:doctorId/start', protect, authorize('doctor', 'hospital_admin'), asyncHandler(async (req, res) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const queue = await Queue.findOne({
+    doctorId: req.params.doctorId,
+    date: today
+  });
+
+  if (!queue) {
+    throw new AppError('No queue found for today', 404);
+  }
+
+  queue.status = 'active';
+  queue.startTime = new Date();
+  await queue.save();
+
+  // Update doctor status
+  await Doctor.findByIdAndUpdate(req.params.doctorId, {
+    currentQueueStatus: 'active'
+  });
+
+  // Get hospital ID for broadcasting
+  const doctor = await Doctor.findById(req.params.doctorId);
+  const hospitalId = doctor?.hospitalId;
+
+  // Emit socket event
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`queue:${req.params.doctorId}`).emit('queue:started', {
+      status: 'active'
+    });
+
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:started', {
+        doctorId: req.params.doctorId,
+        status: 'active'
+      });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Queue started',
+    queue: {
+      ...queue.toObject(),
+      summary: queue.getSummary()
+    }
+  });
+}));
+
 // @route   PUT /api/queue/:doctorId/call-next
 // @desc    Call next patient
 // @access  Private/Doctor
 router.put('/:doctorId/call-next', protect, authorize('doctor', 'hospital_admin'), asyncHandler(async (req, res) => {
   const result = await queueManager.callNextPatient(req.params.doctorId);
+
+  // Get hospital ID for broadcasting
+  const doctor = await Doctor.findById(req.params.doctorId);
+  const hospitalId = doctor?.hospitalId;
 
   // Emit socket event
   const io = req.app.get('io');
@@ -85,11 +243,21 @@ router.put('/:doctorId/call-next', protect, authorize('doctor', 'hospital_admin'
       queueNumber: result.patient.queueNumber
     });
 
-    // Update queue display
+    // Update queue display for doctor's queue room
     io.to(`queue:${req.params.doctorId}`).emit('queue:update', {
       currentPatient: result.patient.queueNumber,
       summary: result.summary
     });
+
+    // Broadcast to hospital admin dashboard
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:patient-called', {
+        doctorId: req.params.doctorId,
+        queueNumber: result.patient.queueNumber,
+        patientName: result.patient.name,
+        summary: result.summary
+      });
+    }
   }
 
   res.status(200).json({
@@ -106,12 +274,40 @@ router.put('/:doctorId/complete-current', protect, authorize('doctor', 'hospital
 
   const result = await queueManager.completeCurrentPatient(req.params.doctorId, notes);
 
+  // Get hospital ID and doctor name for broadcasting
+  const doctor = await Doctor.findById(req.params.doctorId).populate('userId', 'name');
+  const hospitalId = doctor?.hospitalId;
+  const doctorName = doctor?.userId?.name || 'Doctor';
+
+  // Create notification for patient
+  if (result.completedPatient?.patientId) {
+    await Notification.create({
+      userId: result.completedPatient.patientId,
+      type: 'consultation_completed',
+      title: 'Consultation Completed',
+      message: `Your consultation with Dr. ${doctorName} has been completed.`,
+      relatedId: req.params.doctorId,
+      relatedModel: 'Doctor'
+    });
+  }
+
   // Emit socket event
   const io = req.app.get('io');
   if (io) {
     io.to(`queue:${req.params.doctorId}`).emit('queue:update', {
       summary: result.summary
     });
+
+    // Broadcast to hospital admin dashboard
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:update', {
+        doctorId: req.params.doctorId,
+        doctorName,
+        action: 'completed',
+        patientName: result.completedPatient?.name,
+        summary: result.summary
+      });
+    }
   }
 
   res.status(200).json({
@@ -128,12 +324,28 @@ router.put('/:doctorId/skip-patient', protect, authorize('doctor', 'hospital_adm
 
   const result = await queueManager.skipPatient(req.params.doctorId, reason, markAsNoShow);
 
+  // Get hospital ID and doctor name for broadcasting
+  const doctor = await Doctor.findById(req.params.doctorId).populate('userId', 'name');
+  const hospitalId = doctor?.hospitalId;
+  const doctorName = doctor?.userId?.name || 'Doctor';
+
   // Emit socket event
   const io = req.app.get('io');
   if (io) {
     io.to(`queue:${req.params.doctorId}`).emit('queue:update', {
       summary: result.summary
     });
+
+    // Broadcast to hospital admin dashboard
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:update', {
+        doctorId: req.params.doctorId,
+        doctorName,
+        action: markAsNoShow ? 'no_show' : 'skipped',
+        patientName: result.skippedPatient?.name,
+        summary: result.summary
+      });
+    }
   }
 
   res.status(200).json({
@@ -176,6 +388,20 @@ router.put('/:doctorId/add-delay', protect, authorize('doctor', 'hospital_admin'
       entry.appointmentId,
       { delay: queue.currentDelay }
     );
+
+    // Send FCM push notification for delay
+    const patient = await User.findById(entry.patientId);
+    if (patient?.fcmToken && patient.notificationPreferences?.push !== false) {
+      await sendPushNotification(patient.fcmToken, {
+        title: 'Queue Delay Notice',
+        body: `There's a ${queue.currentDelay} minute delay. ${reason ? `Reason: ${reason}` : 'We apologize for the inconvenience.'}`,
+        data: {
+          type: 'delay_notification',
+          appointmentId: entry.appointmentId.toString(),
+          delay: String(queue.currentDelay)
+        }
+      });
+    }
   }
 
   queue.delayAnnounced = true;
@@ -218,15 +444,24 @@ router.put('/:doctorId/pause', protect, authorize('doctor', 'hospital_admin'), a
   await queue.save();
 
   // Update doctor status
-  const { Doctor } = require('../models');
   await Doctor.findByIdAndUpdate(req.params.doctorId, {
     currentQueueStatus: 'paused'
   });
+
+  // Get hospital ID
+  const doctor = await Doctor.findById(req.params.doctorId);
+  const hospitalId = doctor?.hospitalId;
 
   // Emit socket event
   const io = req.app.get('io');
   if (io) {
     io.to(`queue:${req.params.doctorId}`).emit('queue:paused');
+
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:paused', {
+        doctorId: req.params.doctorId
+      });
+    }
   }
 
   res.status(200).json({
@@ -264,10 +499,13 @@ router.put('/:doctorId/resume', protect, authorize('doctor', 'hospital_admin'), 
   await queue.save();
 
   // Update doctor status
-  const { Doctor } = require('../models');
   await Doctor.findByIdAndUpdate(req.params.doctorId, {
     currentQueueStatus: 'active'
   });
+
+  // Get hospital ID
+  const doctor = await Doctor.findById(req.params.doctorId);
+  const hospitalId = doctor?.hospitalId;
 
   // Emit socket event
   const io = req.app.get('io');
@@ -275,12 +513,83 @@ router.put('/:doctorId/resume', protect, authorize('doctor', 'hospital_admin'), 
     io.to(`queue:${req.params.doctorId}`).emit('queue:resumed', {
       summary: queue.getSummary()
     });
+
+    if (hospitalId) {
+      io.to(`hospital:${hospitalId}`).emit('queue:resumed', {
+        doctorId: req.params.doctorId,
+        summary: queue.getSummary()
+      });
+    }
   }
 
   res.status(200).json({
     success: true,
     message: 'Queue resumed',
     summary: queue.getSummary()
+  });
+}));
+
+// @route   POST /api/queue/hospital/:hospitalId/auto-no-show
+// @desc    Run auto no-show detection for all queues in hospital
+// @access  Private/Hospital Admin
+router.post('/hospital/:hospitalId/auto-no-show', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const results = await queueManager.autoDetectNoShows(req.params.hospitalId);
+
+  // Emit socket updates for each detected no-show
+  if (results.noShowsDetected > 0) {
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`hospital:${req.params.hospitalId}`).emit('queue:no-shows-detected', {
+        count: results.noShowsDetected,
+        details: results.details
+      });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    ...results
+  });
+}));
+
+// @route   GET /api/queue/hospital/:hospitalId/no-show-alerts
+// @desc    Get all no-show risk alerts for hospital
+// @access  Private/Hospital Admin
+router.get('/hospital/:hospitalId/no-show-alerts', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const { date } = req.query;
+  const targetDate = date ? new Date(date) : new Date();
+
+  const alerts = await queueManager.getNoShowRiskAlerts(req.params.hospitalId, targetDate);
+
+  res.status(200).json({
+    success: true,
+    date: targetDate.toISOString().split('T')[0],
+    alerts
+  });
+}));
+
+// @route   GET /api/queue/hospital/:hospitalId/analytics
+// @desc    Get hospital-wide queue analytics
+// @access  Private/Hospital Admin
+router.get('/hospital/:hospitalId/analytics', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const doctorAnalytics = require('../services/doctorAnalyticsService');
+  const { specialty } = req.query;
+
+  const comparison = await doctorAnalytics.getDoctorComparison(
+    req.params.hospitalId,
+    specialty || null
+  );
+
+  // Get additional hospital-wide stats
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const hospitalSummary = await Queue.getHospitalSummary(req.params.hospitalId);
+
+  res.status(200).json({
+    success: true,
+    hospitalSummary,
+    doctorComparison: comparison
   });
 }));
 

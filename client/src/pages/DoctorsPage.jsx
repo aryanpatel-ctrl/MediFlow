@@ -1,36 +1,24 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../hooks";
-import api from "../services/api";
+import { useAuth, useHospitalSettings } from "../hooks";
+import api, { resolveMediaUrl } from "../services/api";
 import AddDoctorModal from "../components/AddDoctorModal";
-
-const SPECIALTY_PRIORITY = [
-  "General Medicine",
-  "Pediatrics",
-  "Cardiology",
-  "Orthopedics",
-  "Dermatology",
-  "Neurology",
-  "ENT",
-  "Ophthalmology",
-  "Gastroenterology",
-  "Pulmonology",
-  "Psychiatry",
-  "Gynecology",
-  "Emergency",
-];
+import toast from "react-hot-toast";
 
 const PORTRAIT_TONES = ['peach', 'mint', 'sky', 'sand', 'rose', 'slate', 'blush', 'stone', 'lilac', 'cream'];
 
 function DoctorsPage() {
   const { user } = useAuth();
+  const { specialties } = useHospitalSettings();
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   useEffect(() => {
     fetchDoctors();
@@ -104,9 +92,7 @@ function DoctorsPage() {
 
   const specialtyTabs = [
     "All",
-    ...SPECIALTY_PRIORITY.filter((specialty) =>
-      doctors.some((doctor) => doctor.specialty === specialty)
-    )
+    ...specialties
   ];
 
   const filteredDoctors = doctors.filter(doc => {
@@ -118,11 +104,36 @@ function DoctorsPage() {
   });
 
   const handleAddDoctor = () => {
+    setSelectedDoctor(null);
     setShowAddModal(true);
   };
 
   const handleDoctorAdded = () => {
     fetchDoctors();
+    setSelectedDoctor(null);
+    setOpenMenuId(null);
+  };
+
+  const handleEditDoctor = (doctor) => {
+    setSelectedDoctor(doctor);
+    setShowAddModal(true);
+    setOpenMenuId(null);
+  };
+
+  const handleDeleteDoctor = async (doctor) => {
+    setOpenMenuId(null);
+
+    if (!window.confirm(`Delete ${doctor.name}? This will hide the doctor from active lists.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/doctors/${doctor._id}`);
+      toast.success("Doctor deleted successfully");
+      fetchDoctors();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete doctor");
+    }
   };
 
   if (loading) {
@@ -142,9 +153,13 @@ function DoctorsPage() {
     <AppLayout title="Doctors" subtitle="Browse specialists and manage patient assignments">
       <AddDoctorModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setSelectedDoctor(null);
+        }}
         onSuccess={handleDoctorAdded}
         hospitalId={hospitalId}
+        doctorToEdit={selectedDoctor}
       />
       <main className="doctors-page">
         <section className="panel doctors-directory-card">
@@ -195,17 +210,36 @@ function DoctorsPage() {
                         {doctor.status}
                       </span>
                     </div>
-                    <button className="panel-more" type="button" aria-label={`${doctor.name} actions`}>
+                    <button
+                      className="panel-more"
+                      type="button"
+                      aria-label={`${doctor.name} actions`}
+                      onClick={() => setOpenMenuId((current) => current === doctor._id ? null : doctor._id)}
+                    >
                       ...
                     </button>
+                    {user?.role === 'hospital_admin' && openMenuId === doctor._id ? (
+                      <div className="doctor-card-menu">
+                        <button type="button" onClick={() => handleEditDoctor(doctor)}>
+                          Edit
+                        </button>
+                        <button type="button" className="danger" onClick={() => handleDeleteDoctor(doctor)}>
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className={`doctor-portrait doctor-portrait--${doctor.portraitTone}`} aria-hidden="true">
-                    <div className="doctor-illustration">
-                      <span className="doctor-initials">
-                        {doctor.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </span>
-                    </div>
+                    {doctor.profilePhoto ? (
+                      <img src={resolveMediaUrl(doctor.profilePhoto)} alt={doctor.name} className="doctor-portrait-image" />
+                    ) : (
+                      <div className="doctor-illustration">
+                        <span className="doctor-initials">
+                          {doctor.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="doctor-card__info">

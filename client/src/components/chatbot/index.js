@@ -6,3 +6,4 @@ export { default as DoctorCard } from './DoctorCard';
 export { default as DoctorList } from './DoctorList';
 export { default as SlotPicker } from './SlotPicker';
 export { default as BookingConfirm } from './BookingConfirm';
+export { default as BookingAssistantFlow } from './BookingAssistantFlow';

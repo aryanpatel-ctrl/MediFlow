@@ -1,7 +1,76 @@
 const express = require('express');
 const router = express.Router();
-const { User, OTP } = require('../models');
+const multer = require('multer');
+const sharp = require('sharp');
+const { User, OTP, Hospital } = require('../models');
 const { protect, generateToken, asyncHandler, AppError } = require('../middleware');
+const { uploadBuffer } = require('../services/cloudinaryService');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      cb(new AppError('Only image files are allowed', 400));
+      return;
+    }
+
+    cb(null, true);
+  }
+});
+
+const parseJsonField = (value, fallback = undefined) => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return fallback ?? value;
+  }
+};
+
+const saveUserAvatar = async (file) => {
+  if (!file) {
+    return null;
+  }
+
+  const processedBuffer = await sharp(file.buffer)
+    .rotate()
+    .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+
+  const result = await uploadBuffer(processedBuffer, {
+    folder: 'mediflow/users',
+    resource_type: 'image',
+    format: 'jpg',
+  });
+
+  return result.secure_url;
+};
+
+async function ensurePatientHospital(user) {
+  if (!user || user.role !== 'patient' || user.hospitalId) {
+    return user;
+  }
+
+  const defaultHospital = await Hospital.findOne({ isActive: true }).select('_id name slug');
+  if (!defaultHospital) {
+    return user;
+  }
+
+  user.hospitalId = defaultHospital._id;
+  await user.save();
+  await user.populate('hospitalId', 'name slug');
+
+  return user;
+}
 
 // @route   POST /api/auth/send-otp
 // @desc    Send OTP for registration/login
@@ -81,7 +150,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   }
 
   // Create user
-  const user = await User.create({
+  let user = await User.create({
     name,
     email,
     phone,
@@ -91,6 +160,8 @@ router.post('/register', asyncHandler(async (req, res) => {
     isVerified: true,
     role: 'patient'
   });
+
+  user = await ensurePatientHospital(user);
 
   // Generate token
   const token = generateToken(user._id);
@@ -104,7 +175,9 @@ router.post('/register', asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role
+      role: user.role,
+      hospitalId: user.hospitalId,
+      avatar: user.avatar,
     }
   });
 }));
@@ -120,11 +193,13 @@ router.post('/login', asyncHandler(async (req, res) => {
   }
 
   // Find user
-  const user = await User.findOne({ email }).select('+password');
+  let user = await User.findOne({ email }).select('+password');
 
   if (!user || !(await user.comparePassword(password))) {
     throw new AppError('Invalid credentials', 401);
   }
+
+  user = await ensurePatientHospital(user);
 
   // Generate token
   const token = generateToken(user._id);
@@ -138,7 +213,8 @@ router.post('/login', asyncHandler(async (req, res) => {
       email: user.email,
       phone: user.phone,
       role: user.role,
-      hospitalId: user.hospitalId
+      hospitalId: user.hospitalId,
+      avatar: user.avatar,
     }
   });
 }));
@@ -147,7 +223,8 @@ router.post('/login', asyncHandler(async (req, res) => {
 // @desc    Get current user
 // @access  Private
 router.get('/me', protect, asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).populate('hospitalId', 'name slug');
+  let user = await User.findById(req.user.id).populate('hospitalId', 'name slug');
+  user = await ensurePatientHospital(user);
 
   res.status(200).json({
     success: true,
@@ -158,7 +235,7 @@ router.get('/me', protect, asyncHandler(async (req, res) => {
 // @route   PUT /api/auth/profile
 // @desc    Update user profile
 // @access  Private
-router.put('/profile', protect, asyncHandler(async (req, res) => {
+router.put('/profile', protect, upload.single('avatar'), asyncHandler(async (req, res) => {
   const allowedFields = [
     'name', 'dateOfBirth', 'gender', 'address',
     'medicalHistory', 'allergies', 'emergencyContact',
@@ -171,6 +248,17 @@ router.put('/profile', protect, asyncHandler(async (req, res) => {
       updates[field] = req.body[field];
     }
   });
+
+  ['address', 'medicalHistory', 'allergies', 'emergencyContact', 'notificationPreferences']
+    .forEach((field) => {
+      if (updates[field] !== undefined) {
+        updates[field] = parseJsonField(updates[field], updates[field]);
+      }
+    });
+
+  if (req.file) {
+    updates.avatar = await saveUserAvatar(req.file);
+  }
 
   const user = await User.findByIdAndUpdate(req.user.id, updates, {
     new: true,

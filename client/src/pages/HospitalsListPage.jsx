@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks';
 import api from '../services/api';
 import AppLayout from '../layouts/AppLayout';
+import { resolveMediaUrl } from '../services/api';
 
 function HospitalsListPage() {
   const { user } = useAuth();
@@ -137,10 +138,14 @@ function HospitalsListPage() {
         <div className="hlp-hospitals-grid">
           {filteredHospitals.map(hospital => (
             <div key={hospital._id} className="hlp-hospital-card">
-              <div className="hlp-card-header">
-                <div className="hlp-hospital-avatar">
-                  {hospital.name?.charAt(0).toUpperCase()}
-                </div>
+                <div className="hlp-card-header">
+                  <div className="hlp-hospital-avatar">
+                    {hospital.logo ? (
+                      <img src={resolveMediaUrl(hospital.logo)} alt={hospital.name} className="hospital-logo-image" />
+                    ) : (
+                      hospital.name?.charAt(0).toUpperCase()
+                    )}
+                  </div>
                 <div className="hlp-hospital-title">
                   <h3>{hospital.name}</h3>
                   <p className="hlp-hospital-location">

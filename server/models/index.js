@@ -6,6 +6,9 @@ const ChatSession = require('./ChatSession');
 const Queue = require('./Queue');
 const Notification = require('./Notification');
 const OTP = require('./OTP');
+const Medicine = require('./Medicine');
+const Prescription = require('./Prescription');
+const AICallLog = require('./AICallLog');
 
 module.exports = {
   User,
@@ -15,5 +18,8 @@ module.exports = {
   ChatSession,
   Queue,
   Notification,
-  OTP
+  OTP,
+  Medicine,
+  Prescription,
+  AICallLog
 };

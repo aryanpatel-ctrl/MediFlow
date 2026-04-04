@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
 
@@ -15,6 +15,18 @@ function CancelAppointmentModal({ isOpen, onClose, onSuccess, appointment }) {
   const [reason, setReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

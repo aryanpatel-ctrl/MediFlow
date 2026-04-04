@@ -1,0 +1,33 @@
+# Server-specific .gitignore
+
+# Environment (CRITICAL - contains API keys & secrets)
+.env
+.env.*
+!.env.example
+
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+public/uploads/
+
+# Database dumps
+*.dump
+*.sql
+
+# Credentials
+credentials/
+*.pem
+*.key
+
+# Config with secrets
+config/vapiAssistant.json
+
+# Temporary
+tmp/
+temp/

@@ -1,8 +1,109 @@
 const express = require('express');
 const router = express.Router();
-const { Doctor, User, Appointment, Queue } = require('../models');
+const multer = require('multer');
+const sharp = require('sharp');
+const { Doctor, User, Appointment, Queue, Notification } = require('../models');
 const { protect, authorize, asyncHandler, AppError, generateToken } = require('../middleware');
 const slotGenerator = require('../services/slotGenerator');
+const { uploadBuffer } = require('../services/cloudinaryService');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/') && file.mimetype !== 'application/pdf') {
+      cb(new AppError('Only image and PDF files are allowed', 400));
+      return;
+    }
+
+    cb(null, true);
+  }
+});
+
+const doctorUpload = upload.fields([
+  { name: 'profilePhoto', maxCount: 1 },
+  { name: 'certifications', maxCount: 10 },
+]);
+
+const parseJsonField = (value, fallback = undefined) => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return fallback ?? value;
+  }
+};
+
+const saveDoctorProfilePhoto = async (file) => {
+  if (!file) {
+    return null;
+  }
+
+  if (!file.mimetype.startsWith('image/')) {
+    throw new AppError('Doctor profile photo must be an image', 400);
+  }
+
+  const processedBuffer = await sharp(file.buffer)
+    .rotate()
+    .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+
+  const result = await uploadBuffer(processedBuffer, {
+    folder: 'mediflow/doctors',
+    resource_type: 'image',
+    format: 'jpg',
+  });
+
+  return result.secure_url;
+};
+
+const saveDoctorCertification = async (file) => {
+  if (file.mimetype === 'application/pdf') {
+    const result = await uploadBuffer(file.buffer, {
+      folder: 'mediflow/doctors/certifications',
+      resource_type: 'raw',
+      format: 'pdf',
+    });
+
+    return {
+      name: file.originalname,
+      url: result.secure_url,
+      mimeType: file.mimetype,
+      resourceType: 'raw',
+    };
+  }
+
+  if (file.mimetype.startsWith('image/')) {
+    const processedBuffer = await sharp(file.buffer)
+      .rotate()
+      .resize(1800, 1800, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 84, mozjpeg: true })
+      .toBuffer();
+
+    const result = await uploadBuffer(processedBuffer, {
+      folder: 'mediflow/doctors/certifications',
+      resource_type: 'image',
+      format: 'jpg',
+    });
+
+    return {
+      name: file.originalname,
+      url: result.secure_url,
+      mimeType: file.mimetype,
+      resourceType: 'image',
+    };
+  }
+
+  throw new AppError('Unsupported certification file type', 400);
+};
 
 // @route   GET /api/doctors
 // @desc    Get all doctors with optional filters
@@ -46,7 +147,7 @@ router.get('/', asyncHandler(async (req, res) => {
 // @route   POST /api/doctors/onboard
 // @desc    Onboard new doctor (Hospital Admin only)
 // @access  Private/HospitalAdmin
-router.post('/onboard', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+router.post('/onboard', protect, authorize('hospital_admin'), doctorUpload, asyncHandler(async (req, res) => {
   const {
     name,
     email,
@@ -58,9 +159,16 @@ router.post('/onboard', protect, authorize('hospital_admin'), asyncHandler(async
     experience,
     consultationFee,
     slotDuration,
-    availability,
-    languages
+    languages,
+    licenseExpiry
   } = req.body;
+
+  const availability = parseJsonField(req.body.availability, req.body.availability);
+  const parsedLanguages = parseJsonField(languages, languages);
+  const profilePhotoFile = req.files?.profilePhoto?.[0];
+  const certificationFiles = req.files?.certifications || [];
+  const profilePhoto = await saveDoctorProfilePhoto(profilePhotoFile);
+  const certifications = await Promise.all(certificationFiles.map(saveDoctorCertification));
 
   // Create doctor user
   const doctorUser = await User.create({
@@ -84,7 +192,10 @@ router.post('/onboard', protect, authorize('hospital_admin'), asyncHandler(async
     consultationFee,
     slotDuration: slotDuration || 15,
     availability,
-    languages
+    languages: parsedLanguages,
+    profilePhoto,
+    certifications,
+    licenseExpiry: licenseExpiry || undefined,
   });
 
   // Update hospital doctor count
@@ -128,7 +239,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 // @route   PUT /api/doctors/:id
 // @desc    Update doctor profile
 // @access  Private/Doctor
-router.put('/:id', protect, asyncHandler(async (req, res) => {
+router.put('/:id', protect, doctorUpload, asyncHandler(async (req, res) => {
   let doctor = await Doctor.findById(req.params.id);
 
   if (!doctor) {
@@ -140,10 +251,19 @@ router.put('/:id', protect, asyncHandler(async (req, res) => {
     throw new AppError('Not authorized', 403);
   }
 
+  if (req.user.role !== 'doctor' && req.user.role !== 'hospital_admin') {
+    throw new AppError('Not authorized', 403);
+  }
+
+  if (req.user.role === 'hospital_admin' && req.user.hospitalId?.toString() !== doctor.hospitalId.toString()) {
+    throw new AppError('Not authorized', 403);
+  }
+
   const allowedFields = [
     'bio', 'profilePhoto', 'consultationFee', 'slotDuration',
     'maxPatientsPerDay', 'availability', 'blockedDates',
-    'languages', 'isAcceptingPatients'
+    'languages', 'isAcceptingPatients', 'specialty',
+    'qualification', 'registrationNumber', 'experience', 'licenseExpiry'
   ];
 
   const updates = {};
@@ -153,14 +273,84 @@ router.put('/:id', protect, asyncHandler(async (req, res) => {
     }
   });
 
+  updates.availability = parseJsonField(updates.availability, updates.availability);
+  updates.languages = parseJsonField(updates.languages, updates.languages);
+
+  if (updates.consultationFee !== undefined) {
+    updates.consultationFee = Number(updates.consultationFee);
+  }
+
+  if (updates.slotDuration !== undefined) {
+    updates.slotDuration = Number(updates.slotDuration);
+  }
+
+  if (updates.experience !== undefined) {
+    updates.experience = Number(updates.experience);
+  }
+
+  const profilePhotoFile = req.files?.profilePhoto?.[0];
+  const certificationFiles = req.files?.certifications || [];
+  const retainedCertifications = parseJsonField(req.body.retainedCertifications, []);
+
+  if (profilePhotoFile) {
+    updates.profilePhoto = await saveDoctorProfilePhoto(profilePhotoFile);
+  }
+
+  if (certificationFiles.length > 0 || req.body.retainedCertifications !== undefined) {
+    const uploadedCertifications = await Promise.all(certificationFiles.map(saveDoctorCertification));
+    updates.certifications = [...retainedCertifications, ...uploadedCertifications];
+  }
+
+  const userUpdates = {};
+  ['name', 'email', 'phone'].forEach((field) => {
+    if (req.body[field] !== undefined) {
+      userUpdates[field] = req.body[field];
+    }
+  });
+
   doctor = await Doctor.findByIdAndUpdate(req.params.id, updates, {
     new: true,
     runValidators: true
   });
 
+  if (Object.keys(userUpdates).length > 0) {
+    await User.findByIdAndUpdate(doctor.userId, userUpdates, {
+      new: true,
+      runValidators: true
+    });
+  }
+
+  doctor = await Doctor.findById(req.params.id)
+    .populate('userId', 'name email phone')
+    .populate('hospitalId', 'name address');
+
   res.status(200).json({
     success: true,
     doctor
+  });
+}));
+
+// @route   DELETE /api/doctors/:id
+// @desc    Soft delete doctor
+// @access  Private/HospitalAdmin
+router.delete('/:id', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const doctor = await Doctor.findById(req.params.id);
+
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
+  }
+
+  if (req.user.hospitalId?.toString() !== doctor.hospitalId.toString()) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  doctor.isActive = false;
+  doctor.isAcceptingPatients = false;
+  await doctor.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Doctor deleted successfully'
   });
 }));
 
@@ -265,11 +455,13 @@ router.get('/:id/queue', protect, asyncHandler(async (req, res) => {
 // @desc    Start the queue
 // @access  Private/Doctor
 router.put('/:id/queue/start', protect, asyncHandler(async (req, res) => {
-  const doctor = await Doctor.findById(req.params.id);
+  const doctor = await Doctor.findById(req.params.id).populate('userId', 'name');
 
   if (!doctor) {
     throw new AppError('Doctor not found', 404);
   }
+
+  const doctorName = doctor.userId?.name || 'Doctor';
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -291,6 +483,42 @@ router.put('/:id/queue/start', protect, asyncHandler(async (req, res) => {
   doctor.currentQueueStatus = 'active';
   await doctor.save();
 
+  // Create notification for hospital admins
+  if (doctor.hospitalId) {
+    const admins = await User.find({ hospitalId: doctor.hospitalId, role: 'hospital_admin' });
+    for (const admin of admins) {
+      await Notification.create({
+        userId: admin._id,
+        type: 'queue_started',
+        title: 'Queue Started',
+        message: `Dr. ${doctorName} has started their queue for today.`,
+        relatedId: queue._id,
+        relatedModel: 'Queue'
+      });
+    }
+  }
+
+  // Emit socket event to hospital room for real-time updates
+  const io = req.app.get('io');
+  if (io) {
+    console.log('Emitting queue:started to queue:', doctor._id);
+    io.to(`queue:${doctor._id}`).emit('queue:started', {
+      status: 'active',
+      doctorName
+    });
+
+    if (doctor.hospitalId) {
+      console.log('Emitting queue:started to hospital:', doctor.hospitalId.toString());
+      io.to(`hospital:${doctor.hospitalId}`).emit('queue:started', {
+        doctorId: doctor._id,
+        doctorName,
+        status: 'active'
+      });
+    }
+  } else {
+    console.log('IO not found on app');
+  }
+
   res.status(200).json({
     success: true,
     message: 'Queue started',
@@ -304,6 +532,200 @@ router.put('/:id/queue/start', protect, asyncHandler(async (req, res) => {
 router.put('/:id/queue/next', protect, asyncHandler(async (req, res) => {
   const queueManager = require('../services/queueManager');
   const result = await queueManager.callNextPatient(req.params.id);
+
+  // Get doctor for hospital ID and name
+  const doctor = await Doctor.findById(req.params.id).populate('userId', 'name');
+  const doctorName = doctor?.userId?.name || 'Doctor';
+
+  // Create notification for the patient
+  if (result.patient?.patientId) {
+    await Notification.create({
+      userId: result.patient.patientId,
+      type: 'your_turn',
+      title: "It's Your Turn!",
+      message: `Please proceed to Dr. ${doctorName}'s consultation room. Token #${result.patient.queueNumber}`,
+      relatedId: req.params.id,
+      relatedModel: 'Doctor'
+    });
+  }
+
+  // Emit socket event for real-time updates
+  const io = req.app.get('io');
+  if (io && result.patient) {
+    console.log('Emitting queue:patient-called, patient:', result.patient.queueNumber);
+
+    // Notify the patient
+    io.to(`user:${result.patient.patientId}`).emit('queue:your-turn', {
+      doctorId: req.params.id,
+      doctorName,
+      queueNumber: result.patient.queueNumber
+    });
+
+    // Update queue display for doctor's queue room
+    io.to(`queue:${req.params.id}`).emit('queue:update', {
+      currentPatient: result.patient.queueNumber,
+      summary: result.summary
+    });
+
+    // Broadcast to hospital admin dashboard
+    if (doctor?.hospitalId) {
+      console.log('Emitting to hospital room:', doctor.hospitalId.toString());
+      io.to(`hospital:${doctor.hospitalId}`).emit('queue:patient-called', {
+        doctorId: req.params.id,
+        doctorName,
+        queueNumber: result.patient.queueNumber,
+        patientName: result.patient.name,
+        summary: result.summary
+      });
+    }
+  } else {
+    console.log('IO not found or no patient in result');
+  }
+
+  res.status(200).json({
+    success: true,
+    ...result
+  });
+}));
+
+// @route   GET /api/doctors/:id/analytics
+// @desc    Get doctor analytics and performance metrics
+// @access  Private/Doctor or HospitalAdmin
+router.get('/:id/analytics', protect, asyncHandler(async (req, res) => {
+  const doctorAnalytics = require('../services/doctorAnalyticsService');
+  const { days = 30 } = req.query;
+
+  const doctor = await Doctor.findById(req.params.id);
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
+  }
+
+  // Check authorization
+  if (req.user.role === 'doctor' && doctor.userId.toString() !== req.user.id) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  const analytics = await doctorAnalytics.getDoctorAnalytics(req.params.id, parseInt(days));
+
+  res.status(200).json({
+    success: true,
+    analytics
+  });
+}));
+
+// @route   GET /api/doctors/:id/analytics/trends
+// @desc    Get efficiency trends over time
+// @access  Private/Doctor or HospitalAdmin
+router.get('/:id/analytics/trends', protect, asyncHandler(async (req, res) => {
+  const doctorAnalytics = require('../services/doctorAnalyticsService');
+  const { months = 6 } = req.query;
+
+  const trends = await doctorAnalytics.getEfficiencyTrends(req.params.id, parseInt(months));
+
+  res.status(200).json({
+    success: true,
+    trends
+  });
+}));
+
+// @route   GET /api/doctors/compare
+// @desc    Compare doctors within hospital
+// @access  Private/HospitalAdmin
+router.get('/compare/all', protect, authorize('hospital_admin'), asyncHandler(async (req, res) => {
+  const doctorAnalytics = require('../services/doctorAnalyticsService');
+  const { specialty } = req.query;
+
+  const comparison = await doctorAnalytics.getDoctorComparison(
+    req.user.hospitalId,
+    specialty || null
+  );
+
+  res.status(200).json({
+    success: true,
+    comparison
+  });
+}));
+
+// @route   GET /api/doctors/:id/no-show-alerts
+// @desc    Get no-show risk alerts for doctor's appointments
+// @access  Private/Doctor or HospitalAdmin
+router.get('/:id/no-show-alerts', protect, asyncHandler(async (req, res) => {
+  const queueManager = require('../services/queueManager');
+  const { date } = req.query;
+
+  const targetDate = date ? new Date(date) : new Date();
+  const alerts = await queueManager.getNoShowRiskAlerts(req.user.hospitalId, targetDate);
+
+  // Filter to only this doctor's appointments
+  const doctorAlerts = {
+    high: alerts.high.filter(a => a.doctorId?.toString() === req.params.id),
+    medium: alerts.medium.filter(a => a.doctorId?.toString() === req.params.id),
+    total: 0
+  };
+  doctorAlerts.total = doctorAlerts.high.length + doctorAlerts.medium.length;
+
+  res.status(200).json({
+    success: true,
+    alerts: doctorAlerts
+  });
+}));
+
+// @route   POST /api/doctors/:id/queue/auto-no-show
+// @desc    Trigger auto no-show detection for doctor's queue
+// @access  Private/Doctor or HospitalAdmin
+router.post('/:id/queue/auto-no-show', protect, asyncHandler(async (req, res) => {
+  const queueManager = require('../services/queueManager');
+
+  const doctor = await Doctor.findById(req.params.id);
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
+  }
+
+  // Check authorization
+  if (req.user.role === 'doctor' && doctor.userId.toString() !== req.user.id) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  const results = await queueManager.autoDetectNoShows(doctor.hospitalId);
+
+  // Emit socket update if no-shows were detected
+  if (results.noShowsDetected > 0) {
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`queue:${req.params.id}`).emit('queue:update', {
+        noShowsDetected: results.noShowsDetected
+      });
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    results
+  });
+}));
+
+// @route   POST /api/doctors/:id/queue/check-in
+// @desc    Check in a patient
+// @access  Private
+router.post('/:id/queue/check-in', protect, asyncHandler(async (req, res) => {
+  const queueManager = require('../services/queueManager');
+  const { appointmentId } = req.body;
+
+  if (!appointmentId) {
+    throw new AppError('Appointment ID is required', 400);
+  }
+
+  const result = await queueManager.checkInPatient(appointmentId);
+
+  // Emit socket update
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`queue:${req.params.id}`).emit('queue:check-in', {
+      appointmentId,
+      queueNumber: result.queueNumber,
+      estimatedWait: result.estimatedWait
+    });
+  }
 
   res.status(200).json({
     success: true,

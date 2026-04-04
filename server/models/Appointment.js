@@ -27,6 +27,10 @@ const appointmentSchema = new mongoose.Schema({
     required: true
   },
   slotEndTime: String, // "09:15"
+  appointmentType: {
+    type: String,
+    trim: true
+  },
   // Status
   status: {
     type: String,
@@ -84,6 +88,27 @@ const appointmentSchema = new mongoose.Schema({
     default: 0
   },
   rescheduleReason: String,
+  rescheduleRequest: {
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: null
+    },
+    requestedDate: Date,
+    requestedSlotTime: String,
+    reason: String,
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    requestedAt: Date,
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reviewedAt: Date,
+    responseNote: String
+  },
   // Cancellation
   cancellationReason: String,
   cancelledBy: {
@@ -113,6 +138,43 @@ const appointmentSchema = new mongoose.Schema({
     sentAt: Date,
     status: String
   }],
+  // Voice confirmation workflow
+  attendanceConfirmation: {
+    status: {
+      type: String,
+      enum: [
+        'pending',
+        'call_scheduled',
+        'call_in_progress',
+        'confirmed',
+        'cancel_requested',
+        'cancelled',
+        'reschedule_requested',
+        'unreachable',
+        'failed'
+      ],
+      default: 'pending'
+    },
+    automatedCallEnabled: {
+      type: Boolean,
+      default: true
+    },
+    callAttemptCount: {
+      type: Number,
+      default: 0
+    },
+    lastCallAttemptAt: Date,
+    lastCallLogId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AICallLog'
+    },
+    lastOutcome: String,
+    lastConfirmedAt: Date,
+    lastActionSource: {
+      type: String,
+      enum: ['system', 'patient', 'doctor', 'hospital', 'ai_call']
+    }
+  },
   // Payment (if applicable)
   payment: {
     amount: Number,

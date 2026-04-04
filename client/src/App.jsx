@@ -1,6 +1,17 @@
 import { useEffect } from "react";
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./hooks";
+
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
 
 // Pages
 import AppointmentsPage from "./pages/AppointmentsPage";
@@ -13,16 +24,19 @@ import DepartmentsPage from "./pages/DepartmentsPage";
 import DepartmentDetailsPage from "./pages/DepartmentDetailsPage";
 import CalendarPage from "./pages/CalendarPage";
 import InventoryPage from "./pages/InventoryPage";
-import MessagesPage from "./pages/MessagesPage";
+
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
-import ChatPage from "./pages/ChatPage";
+import BookAppointmentPage from "./pages/BookAppointmentPage";
 import DoctorOnboarding from "./pages/DoctorOnboarding";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import HospitalSettings from "./pages/HospitalSettings";
+import PrescriptionPage from "./pages/PrescriptionPage";
+import QueueDashboardPage from "./pages/QueueDashboardPage";
+import LandingPage from "./components/landing/VoiceflowLandingPage";
 
-// Protected Route Component
+// Protected Route Component - redirects to home if not logged in
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
@@ -30,16 +44,50 @@ function ProtectedRoute({ children }) {
     return (
       <div className="loading-screen">
         <div className="loading-spinner"></div>
-        <p>Loading MedQueue AI...</p>
+        <p>Loading MediFlow...</p>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return children;
+}
+
+// Public Route Component - redirects to dashboard if already logged in
+function PublicRoute({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading MediFlow...</p>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
+function RoleHomeRoute() {
+  const { user } = useAuth();
+
+  if (user?.role === "patient") {
+    return <Navigate to="/book" replace />;
+  }
+
+  if (user?.role === "doctor") {
+    return <Navigate to="/doctor/dashboard" replace />;
+  }
+
+  return <DashboardPage />;
 }
 
 function App() {
@@ -50,10 +98,36 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <Routes>
-      {/* Auth Routes */}
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Landing Page - Public (redirects to dashboard if logged in) */}
+        <Route path="/home" element={
+          <PublicRoute>
+            <LandingPage />
+          </PublicRoute>
+        } />
+
+        {/* Auth Routes - Public (redirects to dashboard if logged in) */}
+        <Route path="/signup" element={
+          <PublicRoute>
+            <SignupPage />
+          </PublicRoute>
+        } />
+        <Route path="/login" element={
+          <PublicRoute>
+            <LoginPage />
+          </PublicRoute>
+        } />
+
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <RoleHomeRoute />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Hospital Admin Settings */}
       <Route
@@ -83,14 +157,6 @@ function App() {
         }
       />
       <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/appointments"
         element={
           <ProtectedRoute>
@@ -110,7 +176,7 @@ function App() {
         path="/chat"
         element={
           <ProtectedRoute>
-            <ChatPage />
+            <Navigate to="/book" replace />
           </ProtectedRoute>
         }
       />
@@ -118,7 +184,7 @@ function App() {
         path="/book"
         element={
           <ProtectedRoute>
-            <ChatPage />
+            <BookAppointmentPage />
           </ProtectedRoute>
         }
       />
@@ -186,18 +252,31 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Prescription Page - Doctor */}
       <Route
-        path="/messages"
+        path="/prescription"
         element={
           <ProtectedRoute>
-            <MessagesPage />
+            <PrescriptionPage />
           </ProtectedRoute>
         }
       />
 
-      {/* Catch all - redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      {/* Queue Dashboard - Hospital Admin */}
+      <Route
+        path="/queue-dashboard"
+        element={
+          <ProtectedRoute>
+            <QueueDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+        {/* Catch all - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

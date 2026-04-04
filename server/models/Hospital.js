@@ -84,12 +84,15 @@ const hospitalSchema = new mongoose.Schema({
   // Available specialties in this hospital
   specialties: [{
     type: String,
-    enum: [
-      'General Medicine', 'Cardiology', 'Neurology', 'Orthopedics',
-      'Pediatrics', 'Gynecology', 'Dermatology', 'ENT', 'Ophthalmology',
-      'Gastroenterology', 'Pulmonology', 'Psychiatry', 'Urology',
-      'Nephrology', 'Oncology', 'Emergency', 'Dental'
-    ]
+    trim: true
+  }],
+  appointmentTypes: [{
+    type: String,
+    trim: true
+  }],
+  inventoryCategories: [{
+    type: String,
+    trim: true
   }],
   // Operating hours
   operatingHours: {
@@ -117,7 +120,8 @@ const hospitalSchema = new mongoose.Schema({
     walkInBuffer: { type: Number, default: 2 }, // extra slots reserved for walk-ins
     checkInWindowBefore: { type: Number, default: 30 }, // minutes before appointment
     checkInWindowAfter: { type: Number, default: 15 }, // minutes after appointment
-    autoNoShowAfter: { type: Number, default: 30 } // minutes after which mark as no-show
+    autoNoShowAfter: { type: Number, default: 30 }, // minutes after which mark as no-show
+    autoNoShowEnabled: { type: Boolean, default: true } // enable auto no-show detection
   },
   // Feature flags
   features: {

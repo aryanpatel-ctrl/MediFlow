@@ -26,6 +26,8 @@ function HospitalOnboarding() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [googleAuthUrl, setGoogleAuthUrl] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -191,7 +193,31 @@ function HospitalOnboarding() {
 
     setLoading(true);
     try {
-      const response = await api.post('/hospitals/onboard', formData);
+      const payload = new FormData();
+      payload.append('name', formData.name);
+      payload.append('type', formData.type);
+      payload.append('registrationNumber', formData.registrationNumber);
+      payload.append('email', formData.email);
+      payload.append('phone', formData.phone);
+      payload.append('website', formData.website);
+      payload.append('address', JSON.stringify(formData.address));
+      payload.append('operatingHours', JSON.stringify(formData.operatingHours));
+      payload.append('emergency24x7', String(formData.emergency24x7));
+      payload.append('specialties', JSON.stringify(formData.specialties));
+      payload.append('defaultSlotDuration', String(formData.defaultSlotDuration));
+      payload.append('maxPatientsPerSlot', String(formData.maxPatientsPerSlot));
+      payload.append('features', JSON.stringify(formData.features));
+      payload.append('emergencySlotsPerDoctor', String(formData.emergencySlotsPerDoctor));
+      payload.append('adminName', formData.adminName);
+      payload.append('adminEmail', formData.adminEmail);
+      payload.append('adminPhone', formData.adminPhone);
+      payload.append('adminPassword', formData.adminPassword);
+
+      if (logoFile) {
+        payload.append('logo', logoFile);
+      }
+
+      const response = await api.post('/hospitals/onboard', payload);
 
       if (response.data.success) {
         // Store auth credentials
@@ -229,6 +255,18 @@ function HospitalOnboarding() {
     }
   };
 
+  const handleLogoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setLogoPreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
   const renderStep1 = () => (
     <div className="onboarding-step">
       <h2>Basic Details</h2>
@@ -242,6 +280,28 @@ function HospitalOnboarding() {
           onChange={(e) => updateFormData('name', e.target.value)}
           placeholder="Enter hospital name"
         />
+      </div>
+
+      <div className="form-group">
+        <label>Hospital Logo</label>
+        <div className="doctor-profile-upload">
+          <div className="doctor-profile-upload__preview">
+            {logoPreview ? <img src={logoPreview} alt="Hospital logo preview" /> : <span>Logo</span>}
+          </div>
+          <div className="doctor-profile-upload__actions">
+            <button type="button" className="btn-secondary" onClick={() => document.getElementById('hospital-logo-upload')?.click()}>
+              Upload Logo
+            </button>
+            <p className="upload-helper-text">JPG, JPEG or PNG up to 5MB</p>
+          </div>
+          <input
+            id="hospital-logo-upload"
+            type="file"
+            accept="image/png,image/jpeg,image/jpg"
+            onChange={handleLogoChange}
+            hidden
+          />
+        </div>
       </div>
 
       <div className="form-group">
@@ -663,7 +723,7 @@ function HospitalOnboarding() {
       <div className="onboarding-container">
         <div className="onboarding-header">
           <h1>Hospital Registration</h1>
-          <p>Join MedQueue AI to streamline your appointment management</p>
+          <p>Join MediFlow to streamline your appointment management</p>
         </div>
 
         <div className="progress-bar">

@@ -10,31 +10,37 @@ import {
   MessageSquarePlus,
   Newspaper,
   PartyPopper,
-  PhoneCall,
   ShieldCheck,
   Smile,
   Sparkles,
   Users,
   Workflow,
   X,
+  Calendar,
+  Stethoscope,
+  Activity,
+  Heart,
+  ClipboardList,
+  UserPlus,
 } from "lucide-react";
+import "./LandingPage.css";
 
 const everydayFeatures = [
-  "People directory",
-  "Calls and transcripts",
-  "Onboarding automations",
-  "Phone number routing",
-  "Campaign orchestration",
-  "Compliance logs",
+  "Patient directory",
+  "Appointment scheduling",
+  "Doctor management",
+  "Queue management",
+  "Prescription tracking",
+  "Medical records",
 ];
 
 const growthFeatures = [
-  "Agent scorecards",
-  "Campaign goals",
-  "Forms and QA checks",
-  "Skills tracking",
-  "Performance reviews",
-  "Analytics",
+  "Patient analytics",
+  "Department metrics",
+  "Staff performance",
+  "Inventory tracking",
+  "Revenue reports",
+  "Wait time analysis",
 ];
 
 function SectionIntro({ eyebrow, title, copy }) {
@@ -53,122 +59,104 @@ function SectionIntro({ eyebrow, title, copy }) {
 
 function DashboardShowcase() {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200/90 bg-white shadow-[0_32px_90px_rgba(23,28,45,0.18)]">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
-        <div className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-        <div className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-        <div className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-        <div className="ml-4 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-          app.voiceflowpro.com/dashboard
+    <div style={{ overflow: 'hidden', borderRadius: '28px', border: '1px solid rgba(226,232,240,0.9)', backgroundColor: 'white', boxShadow: '0 32px 90px rgba(23,28,45,0.18)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f1f5f9', padding: '12px 20px' }}>
+        <div style={{ height: '10px', width: '10px', borderRadius: '50%', backgroundColor: '#cbd5e1' }} />
+        <div style={{ height: '10px', width: '10px', borderRadius: '50%', backgroundColor: '#cbd5e1' }} />
+        <div style={{ height: '10px', width: '10px', borderRadius: '50%', backgroundColor: '#cbd5e1' }} />
+        <div style={{ marginLeft: '16px', borderRadius: '9999px', backgroundColor: '#f1f5f9', padding: '4px 12px', fontSize: '12px', fontWeight: '500', color: '#64748b' }}>
+          app.mediflow.com/dashboard
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 md:grid-cols-[220px_1fr] md:p-6">
-        <aside className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
-          <p className="px-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', padding: '24px' }}>
+        <aside style={{ borderRadius: '16px', border: '1px solid #f1f5f9', backgroundColor: 'rgba(248,250,252,0.7)', padding: '12px' }}>
+          <p style={{ padding: '0 8px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#64748b' }}>
             Menu
           </p>
-          <div className="mt-3 space-y-1.5 text-sm">
-            <div className="rounded-xl bg-[#182b4f] px-3 py-2 font-medium text-white">
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px' }}>
+            <div style={{ borderRadius: '12px', backgroundColor: '#182b4f', padding: '8px 12px', fontWeight: '500', color: 'white' }}>
               Dashboard
             </div>
-            <div className="rounded-xl px-3 py-2 text-slate-600">Calls</div>
-            <div className="rounded-xl px-3 py-2 text-slate-600">
-              Agent Canvas
-            </div>
-            <div className="rounded-xl px-3 py-2 text-slate-600">Campaigns</div>
-            <div className="rounded-xl px-3 py-2 text-slate-600">Analytics</div>
+            <div style={{ borderRadius: '12px', padding: '8px 12px', color: '#475569' }}>Appointments</div>
+            <div style={{ borderRadius: '12px', padding: '8px 12px', color: '#475569' }}>Patients</div>
+            <div style={{ borderRadius: '12px', padding: '8px 12px', color: '#475569' }}>Doctors</div>
+            <div style={{ borderRadius: '12px', padding: '8px 12px', color: '#475569' }}>Queue</div>
           </div>
         </aside>
 
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
             <div>
-              <p className="text-2xl font-semibold text-[#121927]">
-                Good evening, check check
+              <p style={{ fontSize: '24px', fontWeight: '600', color: '#121927' }}>
+                Good morning, Dr. Smith
               </p>
-              <p className="text-sm text-slate-500">
-                Here is what is happening with your voice agents today.
+              <p style={{ fontSize: '14px', color: '#64748b' }}>
+                Here is what is happening at your hospital today.
               </p>
             </div>
-            <div className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-              2 Live Calls
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                Total Calls
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-[#111827]">
-                1,248
-              </p>
-              <p className="text-sm text-emerald-600">+18% vs last week</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                Avg. Duration
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-[#111827]">3:06</p>
-              <p className="text-sm text-rose-600">-6% vs last week</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                Success Rate
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-[#111827]">94%</p>
-              <p className="text-sm text-emerald-600">+4% vs last week</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                Active Agents
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-[#111827]">7</p>
-              <p className="text-sm text-emerald-600">+2 vs last week</p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', borderRadius: '9999px', backgroundColor: '#ecfdf5', padding: '6px 12px', fontSize: '14px', fontWeight: '500', color: '#047857' }}>
+              12 In Queue
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[1.7fr_1fr]">
-            <div className="rounded-xl border border-slate-200">
-              <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-[#111827]">
-                Recent Calls
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
+                Today&apos;s Appointments
+              </p>
+              <p style={{ marginTop: '8px', fontSize: '24px', fontWeight: '600', color: '#111827' }}>48</p>
+              <p style={{ fontSize: '14px', color: '#059669' }}>+12% vs yesterday</p>
+            </div>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
+                Avg. Wait Time
+              </p>
+              <p style={{ marginTop: '8px', fontSize: '24px', fontWeight: '600', color: '#111827' }}>14m</p>
+              <p style={{ fontSize: '14px', color: '#059669' }}>-8% vs last week</p>
+            </div>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
+                Patients Seen
+              </p>
+              <p style={{ marginTop: '8px', fontSize: '24px', fontWeight: '600', color: '#111827' }}>156</p>
+              <p style={{ fontSize: '14px', color: '#059669' }}>+22% this week</p>
+            </div>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
+                Active Doctors
+              </p>
+              <p style={{ marginTop: '8px', fontSize: '24px', fontWeight: '600', color: '#111827' }}>8</p>
+              <p style={{ fontSize: '14px', color: '#059669' }}>All available</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '12px' }}>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ borderBottom: '1px solid #e2e8f0', padding: '12px 16px', fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+                Recent Patients
               </div>
-              <div className="space-y-2 p-3">
-                <div className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2">
-                  <p className="text-sm font-medium text-slate-700">
-                    +1 (415) 555-0101 · Completed
-                  </p>
-                  <p className="text-xs text-slate-500">6 min ago</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '8px', backgroundColor: '#ecfdf5', padding: '8px 12px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Sarah Johnson · Completed</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>6 min ago</p>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">
-                  <p className="text-sm font-medium text-slate-700">
-                    +1 (415) 555-0102 · Missed
-                  </p>
-                  <p className="text-xs text-slate-500">18 min ago</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '8px', backgroundColor: '#fffbeb', padding: '8px 12px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Mike Chen · In Progress</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>Now</p>
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2">
-                  <p className="text-sm font-medium text-slate-700">
-                    +1 (415) 555-0105 · In Progress
-                  </p>
-                  <p className="text-xs text-slate-500">2 min ago</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '8px', backgroundColor: '#f0f9ff', padding: '8px 12px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>Emily Davis · Waiting</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>Next</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 p-3">
-              <p className="text-sm font-semibold text-[#111827]">
-                Quick Actions
-              </p>
-              <div className="mt-3 space-y-2 text-sm text-slate-600">
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  Create New Agent
-                </div>
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  View Analytics
-                </div>
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  Manage Team
-                </div>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', padding: '12px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>Quick Actions</p>
+              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: '#475569' }}>
+                <div style={{ borderRadius: '8px', backgroundColor: '#f8fafc', padding: '8px 12px' }}>Book Appointment</div>
+                <div style={{ borderRadius: '8px', backgroundColor: '#f8fafc', padding: '8px 12px' }}>Add New Patient</div>
+                <div style={{ borderRadius: '8px', backgroundColor: '#f8fafc', padding: '8px 12px' }}>View Queue</div>
               </div>
             </div>
           </div>
@@ -180,77 +168,71 @@ function DashboardShowcase() {
 
 function CanvasShowcase() {
   return (
-    <div className="overflow-hidden rounded-[26px] border border-slate-200/90 bg-white shadow-[0_28px_70px_rgba(24,31,49,0.15)]">
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-sm">
-        <p className="font-semibold text-[#1a2436]">Real Estate Inquiry</p>
-        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-          Saved 21:18
+    <div style={{ overflow: 'hidden', borderRadius: '26px', border: '1px solid rgba(226,232,240,0.9)', backgroundColor: 'white', boxShadow: '0 28px 70px rgba(24,31,49,0.15)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', padding: '12px 16px', fontSize: '14px' }}>
+        <p style={{ fontWeight: '600', color: '#1a2436' }}>Patient Journey</p>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: '9999px', backgroundColor: '#ecfdf5', padding: '4px 12px', fontSize: '12px', fontWeight: '600', color: '#047857' }}>
+          Live Tracking
         </div>
       </div>
-      <div className="grid gap-3 p-3 md:grid-cols-[170px_1fr_220px] md:p-4">
-        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
-          <div className="rounded-lg bg-white px-2 py-2 text-sm font-medium text-slate-700">
-            Start
+      <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 180px', gap: '12px', padding: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '8px' }}>
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+            Check-in
           </div>
-          <div className="rounded-lg bg-white px-2 py-2 text-sm font-medium text-slate-700">
-            Conversation
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+            Triage
           </div>
-          <div className="rounded-lg bg-white px-2 py-2 text-sm font-medium text-slate-700">
-            Transfer
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+            Consultation
           </div>
-          <div className="rounded-lg bg-white px-2 py-2 text-sm font-medium text-slate-700">
-            End
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+            Checkout
           </div>
         </div>
 
-        <div className="relative rounded-xl border border-slate-200 bg-[#fcfcff] p-4">
-          <div className="absolute inset-0 bg-[radial-gradient(#d9dce7_1px,transparent_1px)] opacity-40 [background-size:14px_14px]" />
-          <div className="relative grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-sm font-semibold text-emerald-800">Start</p>
-              <p className="mt-1 text-xs text-emerald-700">
-                Greeting and intent warm-up
+        <div style={{ position: 'relative', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fcfcff', padding: '16px' }}>
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(#d9dce7 1px, transparent 1px)', backgroundSize: '14px 14px', opacity: 0.4 }} />
+          <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div style={{ borderRadius: '12px', border: '1px solid #a7f3d0', backgroundColor: '#ecfdf5', padding: '12px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#065f46' }}>Check-in</p>
+              <p style={{ marginTop: '4px', fontSize: '12px', color: '#047857' }}>
+                Patient arrives and registers
               </p>
             </div>
-            <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-              <p className="text-sm font-semibold text-violet-800">
-                Qualify Intent
-              </p>
-              <p className="mt-1 text-xs text-violet-700">
-                Buyer, seller, renter routing
+            <div style={{ borderRadius: '12px', border: '1px solid #ddd6fe', backgroundColor: '#f5f3ff', padding: '12px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#5b21b6' }}>Queue Assignment</p>
+              <p style={{ marginTop: '4px', fontSize: '12px', color: '#6d28d9' }}>
+                Smart routing to doctor
               </p>
             </div>
-            <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-              <p className="text-sm font-semibold text-sky-800">
-                Search Listings
-              </p>
-              <p className="mt-1 text-xs text-sky-700">HTTP + Speak + Wait</p>
+            <div style={{ borderRadius: '12px', border: '1px solid #bae6fd', backgroundColor: '#f0f9ff', padding: '12px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#075985' }}>Consultation</p>
+              <p style={{ marginTop: '4px', fontSize: '12px', color: '#0369a1' }}>Doctor examination</p>
             </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm font-semibold text-amber-800">
-                Transfer to Agent
-              </p>
-              <p className="mt-1 text-xs text-amber-700">
-                Warm transfer fallback
+            <div style={{ borderRadius: '12px', border: '1px solid #fde68a', backgroundColor: '#fffbeb', padding: '12px' }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: '#92400e' }}>Prescription</p>
+              <p style={{ marginTop: '4px', fontSize: '12px', color: '#b45309' }}>
+                Digital prescription
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-sm font-semibold text-[#1a2436]">Properties</p>
-          <div className="mt-2 space-y-2">
-            <div className="rounded-lg bg-white p-2 text-xs text-slate-600">
-              Label: Qualify Intent
+        <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '12px' }}>
+          <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a2436' }}>Patient Info</p>
+          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '12px', color: '#475569' }}>
+              Name: John Doe
             </div>
-            <div className="rounded-lg bg-white p-2 text-xs text-slate-600">
-              Mode: Prompt
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '12px', color: '#475569' }}>
+              Department: Cardiology
             </div>
-            <div className="rounded-lg bg-white p-2 text-xs text-slate-600">
-              Model: GPT-4o mini
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '12px', color: '#475569' }}>
+              Doctor: Dr. Smith
             </div>
-            <div className="rounded-lg bg-white p-2 text-xs text-slate-600">
-              Temperature: 0.7
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px', fontSize: '12px', color: '#475569' }}>
+              Status: In Progress
             </div>
           </div>
         </div>
@@ -261,54 +243,53 @@ function CanvasShowcase() {
 
 function GrowthShowcase() {
   return (
-    <div className="overflow-hidden rounded-[26px] border border-slate-200/90 bg-white shadow-[0_26px_70px_rgba(20,26,40,0.14)]">
-      <div className="border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-[#1a2436]">1:1 Weekly</p>
+    <div style={{ overflow: 'hidden', borderRadius: '26px', border: '1px solid rgba(226,232,240,0.9)', backgroundColor: 'white', boxShadow: '0 26px 70px rgba(20,26,40,0.14)' }}>
+      <div style={{ borderBottom: '1px solid #f1f5f9', padding: '12px 16px' }}>
+        <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a2436' }}>Weekly Report</p>
       </div>
-      <div className="grid gap-4 p-4 md:grid-cols-[1.3fr_1fr]">
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <div className="rounded-lg bg-white p-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '16px', padding: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '12px' }}>
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '12px' }}>
+            <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
               Highlights
             </p>
-            <p className="mt-2 text-sm text-slate-700">
-              Customer intake performance improved after call-transfer routing
-              update.
+            <p style={{ marginTop: '8px', fontSize: '14px', color: '#334155' }}>
+              Patient wait times reduced by 35% after queue optimization update.
             </p>
           </div>
-          <div className="rounded-lg bg-white p-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '12px' }}>
+            <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
               Focus Next Week
             </p>
-            <p className="mt-2 text-sm text-slate-700">
-              Improve callback coverage during lunch-hour spike.
+            <p style={{ marginTop: '8px', fontSize: '14px', color: '#334155' }}>
+              Improve appointment scheduling during peak morning hours.
             </p>
           </div>
-          <div className="rounded-lg bg-white p-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-              Owner
+          <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '12px' }}>
+            <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
+              Department
             </p>
-            <p className="mt-2 text-sm text-slate-700">check_00</p>
+            <p style={{ marginTop: '8px', fontSize: '14px', color: '#334155' }}>Cardiology</p>
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-gradient-to-b from-[#dff9f7] via-white to-[#f4fffe] p-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-            Score Snapshot
+        <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', background: 'linear-gradient(to bottom, #dff9f7, white, #f4fffe)', padding: '12px' }}>
+          <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#64748b' }}>
+            Performance Snapshot
           </p>
-          <div className="mt-3 space-y-2">
-            <div className="rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
-              Agent quality: 92%
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px 12px', fontSize: '14px', color: '#334155' }}>
+              Patient satisfaction: 96%
             </div>
-            <div className="rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
-              Campaign hit rate: 88%
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px 12px', fontSize: '14px', color: '#334155' }}>
+              Appointment completion: 94%
             </div>
-            <div className="rounded-lg bg-white px-3 py-2 text-sm text-slate-700">
-              Live call pickups: 97%
+            <div style={{ borderRadius: '8px', backgroundColor: 'white', padding: '8px 12px', fontSize: '14px', color: '#334155' }}>
+              Average wait time: 12 min
             </div>
           </div>
-          <div className="mt-4 rounded-lg bg-[#d7f4ff] p-3 text-sm text-slate-700">
-            Auto-generated notes are ready for review.
+          <div style={{ marginTop: '16px', borderRadius: '8px', backgroundColor: '#d7f4ff', padding: '12px', fontSize: '14px', color: '#334155' }}>
+            Monthly analytics report is ready for review.
           </div>
         </div>
       </div>
@@ -326,36 +307,36 @@ function TeamCultureShowcase() {
               <Newspaper className="h-7 w-7" />
             </div>
             <h3 className="mt-4 font-display text-5xl font-semibold leading-none text-[#121e33]">
-              Posts
+              Updates
             </h3>
             <p className="mt-4 max-w-md text-xl leading-relaxed text-[#143858]/90">
-              Keep everyone in the loop with thoughtful, timely updates, big or
-              small.
+              Keep your medical staff informed with real-time announcements and
+              important updates.
             </p>
           </div>
 
           <div className="rounded-t-[24px] bg-white p-6 shadow-[0_-12px_40px_rgba(14,36,59,0.12)]">
             <p className="text-xl text-slate-400">1h ago</p>
             <p className="mt-1 font-display text-5xl font-semibold leading-none text-[#141c2d]">
-              It&apos;s launch day
+              New wing opening
             </p>
 
             <div className="mt-5 flex items-center gap-3">
               <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#f4a28c] via-[#8a5a42] to-[#1e324a]" />
               <div>
                 <p className="text-2xl font-semibold leading-none text-[#111827]">
-                  Ava Williams
+                  Dr. Sarah Chen
                 </p>
-                <p className="mt-1 text-xl text-slate-500">Office Manager</p>
+                <p className="mt-1 text-xl text-slate-500">Hospital Admin</p>
               </div>
             </div>
 
             <p className="mt-5 text-2xl leading-relaxed text-slate-700">
-              Today&apos;s the day. We&apos;re launching the new routing setup.
-              Here&apos;s a quick guide to help everything run smoothly.
+              Excited to announce our new pediatric wing opens next Monday.
+              Here&apos;s what you need to know.
             </p>
             <p className="mt-4 text-xl font-semibold text-[#253042]">
-              Arrival and Access
+              Staff Orientation Schedule
             </p>
           </div>
         </article>
@@ -366,11 +347,11 @@ function TeamCultureShowcase() {
               <LayoutPanelTop className="h-7 w-7" />
             </div>
             <h3 className="mt-4 font-display text-5xl font-semibold leading-none text-[#1d1733]">
-              Operator portal
+              Staff Portal
             </h3>
             <p className="mt-4 max-w-md text-xl leading-relaxed text-[#3f3365]/90">
-              A personal space for every teammate to access scripts, runbooks,
-              and updates anytime.
+              A dedicated space for doctors and nurses to access schedules,
+              protocols, and patient information.
             </p>
           </div>
 
@@ -401,10 +382,11 @@ function TeamCultureShowcase() {
               <PartyPopper className="h-7 w-7" />
             </div>
             <h3 className="mt-4 font-display text-5xl font-semibold leading-none text-white">
-              Events
+              Team Events
             </h3>
             <p className="mt-4 max-w-md text-2xl leading-relaxed text-white/90">
-              Plan internal moments that feel like something to look forward to.
+              Celebrate milestones and build stronger connections with your
+              healthcare team.
             </p>
           </div>
         </article>
@@ -414,11 +396,11 @@ function TeamCultureShowcase() {
             <ImageIcon className="h-7 w-7" />
           </div>
           <h3 className="mt-4 font-display text-5xl font-semibold leading-none text-[#1b1b15]">
-            Media library
+            Medical Records
           </h3>
           <p className="mt-4 max-w-md text-xl leading-relaxed text-[#382f16]/90">
-            Bring your culture to life through the faces, moments, and memories
-            your team shares.
+            Securely store and access patient records, prescriptions, and
+            medical history in one place.
           </p>
 
           <div className="mx-auto mt-8 max-w-[320px] rounded-[2.4rem] border-[8px] border-[#121826] bg-[#121826] p-1 shadow-[0_20px_40px_rgba(39,31,8,0.3)]">
@@ -430,7 +412,7 @@ function TeamCultureShowcase() {
               </div>
               <div className="px-4 pb-4">
                 <p className="text-center text-sm font-semibold text-slate-700">
-                  Photos
+                  Patient Records
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-500">
                   Recent
@@ -441,7 +423,7 @@ function TeamCultureShowcase() {
                   <div className="h-14 rounded-lg bg-[#8db4d4]" />
                 </div>
                 <p className="mt-3 text-sm font-semibold text-slate-500">
-                  Albums
+                  Categories
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="h-12 rounded-lg bg-[#ead4b6]" />
@@ -464,41 +446,41 @@ export default function VoiceflowLandingPage() {
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-[#f5f4f1]/90 backdrop-blur-lg">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <a href="/" className="inline-flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1a2744] text-white shadow-lg shadow-[#1a2744]/25">
-              <Sparkles className="h-5 w-5" />
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2A9D8F] text-white shadow-lg shadow-[#2A9D8F]/25">
+              <Activity className="h-5 w-5" />
             </span>
             <span className="font-display text-2xl font-semibold tracking-tight text-[#111827]">
-              VoiceFlowPro
+              MediFlow
             </span>
           </a>
 
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 lg:flex">
             <a href="#product" className="transition-colors hover:text-slate-900">
-              Product
+              Features
             </a>
             <a href="#culture" className="transition-colors hover:text-slate-900">
-              Team Culture
+              For Hospitals
             </a>
             <a href="#growth" className="transition-colors hover:text-slate-900">
-              Growth
+              Analytics
             </a>
             <a href="#pricing" className="transition-colors hover:text-slate-900">
-              Pricing
+              Get Started
             </a>
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <a
-              href="#pricing"
+              href="/login"
               className="hidden rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-white/80 sm:inline-flex"
             >
               Sign in
             </a>
             <a
-              href="#pricing"
-              className="inline-flex items-center gap-2 rounded-full bg-[#d9eeff] px-4 py-2 text-sm font-semibold text-[#0a76ce] transition hover:-translate-y-0.5"
+              href="/signup"
+              className="inline-flex items-center gap-2 rounded-full bg-[#2A9D8F] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
             >
-              Try for free
+              Get Started
             </a>
             <button
               type="button"
@@ -527,31 +509,31 @@ export default function VoiceflowLandingPage() {
                 className="rounded-xl px-3 py-2 transition hover:bg-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Product
+                Features
               </a>
               <a
                 href="#culture"
                 className="rounded-xl px-3 py-2 transition hover:bg-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Team Culture
+                For Hospitals
               </a>
               <a
                 href="#growth"
                 className="rounded-xl px-3 py-2 transition hover:bg-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Growth
+                Analytics
               </a>
               <a
                 href="#pricing"
                 className="rounded-xl px-3 py-2 transition hover:bg-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Pricing
+                Get Started
               </a>
               <a
-                href="#pricing"
+                href="/login"
                 className="rounded-xl px-3 py-2 transition hover:bg-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
@@ -570,32 +552,32 @@ export default function VoiceflowLandingPage() {
           <div className="mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-20 lg:pb-20 lg:pt-24">
             <div className="landing-appear mx-auto max-w-3xl text-center">
               <h1 className="font-display text-5xl font-semibold leading-[0.9] tracking-tight text-[#131722] sm:text-6xl lg:text-7xl">
-                Run voice operations.
-                <span className="block text-[#2b6cb0]">With confidence.</span>
+                Streamline your hospital.
+                <span className="block text-[#2A9D8F]">Elevate patient care.</span>
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-slate-600 sm:text-xl">
-                Bring all your people and call data into one place. Build,
-                monitor, and improve AI agents with a workflow your team
-                actually enjoys using.
+                Manage appointments, queues, and patient records in one place.
+                Reduce wait times and improve efficiency with AI-powered
+                healthcare management.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <a
-                  href="#pricing"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#0a84df] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#0a84df]/30 transition hover:-translate-y-0.5"
+                  href="/signup"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#2A9D8F] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#2A9D8F]/30 transition hover:-translate-y-0.5"
                 >
-                  Start free trial
+                  Get Started Free
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
                   href="#product"
                   className="inline-flex rounded-full bg-[#d7ecff] px-6 py-3 text-sm font-semibold text-[#0a76ce] transition hover:-translate-y-0.5"
                 >
-                  Book a demo
+                  See How It Works
                 </a>
               </div>
             </div>
 
-            <div className="landing-appear mt-12 rounded-[34px] bg-[#f4cbe1] p-4 sm:p-7">
+            <div style={{ marginTop: '48px', borderRadius: '34px', backgroundColor: '#f4cbe1', padding: '28px' }}>
               <DashboardShowcase />
             </div>
           </div>
@@ -605,38 +587,39 @@ export default function VoiceflowLandingPage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="font-display text-4xl font-semibold leading-tight text-[#131722] sm:text-5xl">
-                Built for people, not just the process around them.
+                Built for healthcare, designed for efficiency.
               </h2>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <PhoneCall className="h-8 w-8 text-[#0a84df]" />
+                <Calendar className="h-8 w-8 text-[#2A9D8F]" />
                 <p className="mt-4 text-lg font-semibold text-[#131722]">
-                  Day-to-day operations
+                  Smart Scheduling
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  One place for calls, campaigns, transcripts, and fast
-                  follow-ups.
+                  AI-powered appointment booking that optimizes doctor
+                  availability and patient convenience.
                 </p>
               </div>
               <div className="rounded-3xl border border-slate-200 bg-white p-5">
                 <Users className="h-8 w-8 text-[#f59e0b]" />
                 <p className="mt-4 text-lg font-semibold text-[#131722]">
-                  Shared team alignment
+                  Queue Management
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Keep everyone on the same runbook with clear ownership and
-                  status.
+                  Real-time patient queue with smart routing and wait time
+                  predictions.
                 </p>
               </div>
               <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <Workflow className="h-8 w-8 text-[#14b8a6]" />
+                <ClipboardList className="h-8 w-8 text-[#8b5cf6]" />
                 <p className="mt-4 text-lg font-semibold text-[#131722]">
-                  Scale with clarity
+                  Digital Prescriptions
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Build reusable flows and safely ship updates as volume grows.
+                  Generate and manage prescriptions digitally with complete
+                  medical history tracking.
                 </p>
               </div>
             </div>
@@ -644,12 +627,12 @@ export default function VoiceflowLandingPage() {
         </section>
 
         <section className="py-16 sm:py-20">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr]">
-            <div className="self-center">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.05fr', gap: '40px', maxWidth: '72rem', margin: '0 auto', padding: '0 24px' }}>
+            <div style={{ alignSelf: 'center' }}>
               <SectionIntro
-                eyebrow="Everyday HR"
-                title="All the basics, done beautifully."
-                copy="From intake to handoff, VoiceFlow Pro keeps your daily operations clear and calm. Every important action is one click away."
+                eyebrow="Hospital Operations"
+                title="All essentials, streamlined."
+                copy="From patient check-in to checkout, MediFlow keeps your hospital running smoothly. Every action your staff needs is one click away."
               />
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {everydayFeatures.map((feature) => (
@@ -657,7 +640,7 @@ export default function VoiceflowLandingPage() {
                     key={feature}
                     className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-700"
                   >
-                    <BadgeCheck className="h-4 w-4 text-[#2b6cb0]" />
+                    <BadgeCheck className="h-4 w-4 text-[#2A9D8F]" />
                     {feature}
                   </div>
                 ))}
@@ -670,7 +653,7 @@ export default function VoiceflowLandingPage() {
               </a>
             </div>
 
-            <div className="rounded-[34px] bg-[#dcd2ff] p-4 sm:p-6">
+            <div style={{ borderRadius: '34px', backgroundColor: '#dcd2ff', padding: '24px' }}>
               <CanvasShowcase />
             </div>
           </div>
@@ -680,14 +663,14 @@ export default function VoiceflowLandingPage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#cd7b2f]">
-                Team culture
+                For Hospitals
               </p>
               <h2 className="mt-4 font-display text-4xl font-semibold leading-[0.95] text-[#131722] sm:text-6xl">
-                Belong together.
+                Connected care teams.
               </h2>
               <p className="mt-5 text-lg leading-relaxed text-slate-600">
-                Keep everyone in sync with updates, shared context, and
-                celebration moments that make operations feel human.
+                Keep your medical staff in sync with real-time updates,
+                shared patient information, and collaborative tools.
               </p>
             </div>
 
@@ -696,12 +679,12 @@ export default function VoiceflowLandingPage() {
         </section>
 
         <section id="growth" className="py-16 sm:py-20">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1.05fr]">
-            <div className="self-center">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.05fr', gap: '40px', maxWidth: '72rem', margin: '0 auto', padding: '0 24px' }}>
+            <div style={{ alignSelf: 'center' }}>
               <SectionIntro
-                eyebrow="Growth and feedback"
-                title="Grow your people."
-                copy="Support agents and operators with clear goals, recurring reviews, and live coaching loops informed by real conversation data."
+                eyebrow="Analytics & Insights"
+                title="Data-driven healthcare."
+                copy="Track patient flow, monitor wait times, and optimize your hospital operations with comprehensive analytics and reporting."
               />
 
               <div className="mt-7 grid gap-3 sm:grid-cols-2">
@@ -724,7 +707,7 @@ export default function VoiceflowLandingPage() {
               </a>
             </div>
 
-            <div className="rounded-[34px] bg-[#c8f0ef] p-4 sm:p-6">
+            <div style={{ borderRadius: '34px', backgroundColor: '#c8f0ef', padding: '24px' }}>
               <GrowthShowcase />
             </div>
           </div>
@@ -734,64 +717,64 @@ export default function VoiceflowLandingPage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="rounded-[36px] border border-slate-200 bg-white px-6 py-12 text-center shadow-[0_24px_70px_rgba(15,21,34,0.08)] sm:px-12">
               <h2 className="font-display text-4xl font-semibold text-[#131722] sm:text-5xl">
-                Ready to get started?
+                Ready to transform your hospital?
               </h2>
               <p className="mt-3 text-xl text-slate-500">
-                Launch in less than a week.
+                Get started in minutes, not days.
               </p>
 
               <div className="mt-8 grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <ShieldCheck className="h-5 w-5 text-[#2d5d9b]" />
+                  <ShieldCheck className="h-5 w-5 text-[#2A9D8F]" />
                   <p className="mt-3 text-sm font-semibold text-[#131722]">
-                    All included
+                    HIPAA Compliant
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Full access with no hidden add-ons.
+                    Secure patient data with full compliance.
                   </p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <Clock3 className="h-5 w-5 text-[#2d5d9b]" />
+                  <Clock3 className="h-5 w-5 text-[#2A9D8F]" />
                   <p className="mt-3 text-sm font-semibold text-[#131722]">
-                    No setup fees
+                    24/7 Availability
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Transparent pricing from day one.
+                    Always-on system for round-the-clock care.
                   </p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <Sparkles className="h-5 w-5 text-[#2d5d9b]" />
+                  <Sparkles className="h-5 w-5 text-[#2A9D8F]" />
                   <p className="mt-3 text-sm font-semibold text-[#131722]">
-                    Fast setup
+                    AI-Powered
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Live quickly with onboarding support.
+                    Smart scheduling and queue optimization.
                   </p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <MessageSquarePlus className="h-5 w-5 text-[#2d5d9b]" />
+                  <MessageSquarePlus className="h-5 w-5 text-[#2A9D8F]" />
                   <p className="mt-3 text-sm font-semibold text-[#131722]">
-                    Real support
+                    Dedicated Support
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Talk to humans when you need help.
+                    Expert help when you need it most.
                   </p>
                 </div>
               </div>
 
               <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
                 <a
-                  href="#pricing"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#0a84df] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#0a84df]/30 transition hover:-translate-y-0.5"
+                  href="/signup"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#2A9D8F] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#2A9D8F]/30 transition hover:-translate-y-0.5"
                 >
-                  Try for free
+                  Start Free Trial
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <a
                   href="#product"
                   className="inline-flex rounded-full bg-[#d9eeff] px-6 py-3 text-sm font-semibold text-[#0a76ce] transition hover:-translate-y-0.5"
                 >
-                  Book a demo
+                  Schedule Demo
                 </a>
               </div>
             </div>
@@ -801,19 +784,19 @@ export default function VoiceflowLandingPage() {
 
       <footer className="border-t border-slate-200 py-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>VoiceFlowPro Inc.</p>
+          <p>MediFlow Healthcare Solutions</p>
           <div className="flex flex-wrap gap-6">
-            <a href="#pricing" className="transition-colors hover:text-slate-800">
-              Pricing
-            </a>
             <a href="#product" className="transition-colors hover:text-slate-800">
-              Terms
+              Features
+            </a>
+            <a href="#culture" className="transition-colors hover:text-slate-800">
+              About Us
             </a>
             <a href="#growth" className="transition-colors hover:text-slate-800">
-              Data protection
+              Privacy Policy
             </a>
           </div>
-          <p>© 2026 VoiceFlowPro</p>
+          <p>© 2026 MediFlow</p>
         </div>
       </footer>
     </div>

@@ -1,81 +1,93 @@
 import { useState, useRef, useEffect } from "react";
-import api from "../services/api";
-
-const DEPARTMENTS = [
-  "General Medicine",
-  "Cardiology",
-  "Orthopedics",
-  "Pediatrics",
-  "Dermatology",
-  "Neurology",
-  "ENT",
-  "Ophthalmology",
-  "Gastroenterology",
-  "Pulmonology",
-  "Psychiatry",
-  "Gynecology",
-  "Endocrinology",
-  "Oncology",
-  "Radiology",
-  "Anesthesiology",
-  "Emergency",
-];
-
-const SPECIALIZATIONS = {
-  "General Medicine": ["Internal Medicine", "Family Medicine", "Preventive Care"],
-  "Cardiology": ["Interventional Cardiology", "Electrophysiology", "Heart Failure"],
-  "Orthopedics": ["Sports Medicine", "Joint Replacement", "Spine Surgery"],
-  "Pediatrics": ["Neonatology", "Pediatric Surgery", "Adolescent Medicine"],
-  "Dermatology": ["Cosmetic Dermatology", "Pediatric Dermatology", "Dermatopathology"],
-  "Neurology": ["Stroke", "Epilepsy", "Movement Disorders"],
-  "Endocrinology": ["Diabetes & Metabolic Disorders", "Thyroid Disorders", "Hormone Therapy"],
-  "Oncology": ["Medical Oncology", "Surgical Oncology", "Radiation Oncology"],
-  "Radiology": ["Diagnostic Radiology", "Interventional Radiology", "Nuclear Medicine"],
-};
+import api, { resolveMediaUrl } from "../services/api";
+import { useHospitalSettings } from "../hooks";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ["00", "15", "30", "45"];
 
-function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
+const createInitialFormData = () => ({
+  fullName: "",
+  gender: "female",
+  dateOfBirth: "",
+  doctorId: "",
+  about: "",
+  phone: "",
+  email: "",
+  address: "",
+  emergencyContactName: "",
+  emergencyContactPhone: "",
+  department: "",
+  workType: "full_time",
+  employmentStartDate: "",
+  salary: "",
+  licenseNumber: "",
+  licenseExpiry: "",
+  schedule: {
+    monday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
+    tuesday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
+    wednesday: { enabled: false, startHour: "15", startMin: "00", endHour: "21", endMin: "00" },
+    thursday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
+    friday: { enabled: true, startHour: "13", startMin: "00", endHour: "18", endMin: "00" },
+    saturday: { enabled: false, startHour: "09", startMin: "00", endHour: "13", endMin: "00" },
+    sunday: { enabled: false, startHour: "09", startMin: "00", endHour: "13", endMin: "00" },
+  },
+  minAppointments: 1,
+  maxAppointments: 18,
+});
+
+const mapDoctorToFormData = (doctor) => {
+  const base = createInitialFormData();
+  if (!doctor) return base;
+
+  const mappedSchedule = { ...base.schedule };
+  Object.entries(doctor.availability || {}).forEach(([day, value]) => {
+    const firstSlot = value?.slots?.[0];
+    mappedSchedule[day] = {
+      enabled: Boolean(value?.isAvailable && firstSlot),
+      startHour: firstSlot?.startTime?.slice(0, 2) || base.schedule[day].startHour,
+      startMin: firstSlot?.startTime?.slice(3, 5) || base.schedule[day].startMin,
+      endHour: firstSlot?.endTime?.slice(0, 2) || base.schedule[day].endHour,
+      endMin: firstSlot?.endTime?.slice(3, 5) || base.schedule[day].endMin,
+    };
+  });
+
+  return {
+    ...base,
+    fullName: doctor.userId?.name || "",
+    about: doctor.bio || "",
+    phone: doctor.userId?.phone || "",
+    email: doctor.userId?.email || "",
+    department: doctor.specialty || "",
+    licenseNumber: doctor.registrationNumber || "",
+    licenseExpiry: doctor.licenseExpiry ? new Date(doctor.licenseExpiry).toISOString().slice(0, 10) : "",
+    schedule: mappedSchedule,
+  };
+};
+
+const mapDoctorCertifications = (doctor) =>
+  (doctor?.certifications || []).map((cert, index) => ({
+    id: cert.url || `${cert.name}-${index}`,
+    name: cert.name,
+    url: cert.url,
+    mimeType: cert.mimeType,
+    isExisting: true,
+  }));
+
+function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId, doctorToEdit = null }) {
+  const { specialties } = useHospitalSettings(hospitalId);
+  const departmentOptions = specialties.length ? specialties : ["General Medicine"];
   const fileInputRef = useRef(null);
   const certInputRef = useRef(null);
+  const isEditMode = Boolean(doctorToEdit);
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [profilePreview, setProfilePreview] = useState(null);
+  const [profileImageFile, setProfileImageFile] = useState(null);
   const [certifications, setCertifications] = useState([]);
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    gender: "female",
-    dateOfBirth: "",
-    doctorId: "",
-    about: "",
-    phone: "",
-    email: "",
-    address: "",
-    emergencyContactName: "",
-    emergencyContactPhone: "",
-    department: "",
-    specialization: "",
-    workType: "full_time",
-    employmentStartDate: "",
-    salary: "",
-    licenseNumber: "",
-    licenseExpiry: "",
-    schedule: {
-      monday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
-      tuesday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
-      wednesday: { enabled: false, startHour: "15", startMin: "00", endHour: "21", endMin: "00" },
-      thursday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
-      friday: { enabled: true, startHour: "13", startMin: "00", endHour: "18", endMin: "00" },
-      saturday: { enabled: false, startHour: "09", startMin: "00", endHour: "13", endMin: "00" },
-      sunday: { enabled: false, startHour: "09", startMin: "00", endHour: "13", endMin: "00" },
-    },
-    minAppointments: 1,
-    maxAppointments: 18,
-  });
+  const [formData, setFormData] = useState(createInitialFormData);
 
   useEffect(() => {
     if (isOpen) {
@@ -85,6 +97,24 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
     }
     return () => document.body.classList.remove("modal-open");
   }, [isOpen]);
+
+  useEffect(() => {
+    if (departmentOptions.length > 0 && !departmentOptions.includes(formData.department)) {
+      setFormData((prev) => ({ ...prev, department: departmentOptions[0] }));
+    }
+  }, [departmentOptions, formData.department]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setFormData(mapDoctorToFormData(doctorToEdit));
+    setProfilePreview(doctorToEdit?.profilePhoto ? resolveMediaUrl(doctorToEdit.profilePhoto) : null);
+    setProfileImageFile(null);
+    setCertifications(mapDoctorCertifications(doctorToEdit));
+    setErrors({});
+  }, [doctorToEdit, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -110,6 +140,7 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
   const handleProfileImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setProfileImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setProfilePreview(reader.result);
       reader.readAsDataURL(file);
@@ -121,7 +152,8 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
     const newCerts = files.map(file => ({
       name: file.name,
       file: file,
-      id: Date.now() + Math.random()
+      id: `${file.name}-${Date.now()}-${Math.random()}`,
+      isExisting: false,
     }));
     setCertifications(prev => [...prev, ...newCerts]);
   };
@@ -136,7 +168,8 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
     const newCerts = files.map(file => ({
       name: file.name,
       file: file,
-      id: Date.now() + Math.random()
+      id: `${file.name}-${Date.now()}-${Math.random()}`,
+      isExisting: false,
     }));
     setCertifications(prev => [...prev, ...newCerts]);
   };
@@ -168,70 +201,74 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
         };
       });
 
-      const doctorData = {
-        name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        password: "TempPass@123",
-        specialty: formData.department,
-        qualification: formData.specialization || formData.department,
-        registrationNumber: formData.licenseNumber || `DR-${Date.now()}`,
-        experience: 1,
-        consultationFee: 500,
-        slotDuration: 30,
-        availability: availability,
-        languages: ["English", "Hindi"]
-      };
+      const doctorData = new FormData();
+      doctorData.append('name', formData.fullName);
+      doctorData.append('email', formData.email);
+      doctorData.append('phone', formData.phone);
+      if (!isEditMode) {
+        doctorData.append('password', 'TempPass@123');
+      }
+      doctorData.append('specialty', formData.department);
+      doctorData.append('qualification', formData.department);
+      doctorData.append('registrationNumber', formData.licenseNumber || `DR-${Date.now()}`);
+      doctorData.append('experience', '1');
+      doctorData.append('consultationFee', '500');
+      doctorData.append('slotDuration', '30');
+      doctorData.append('bio', formData.about);
+      doctorData.append('licenseExpiry', formData.licenseExpiry);
+      doctorData.append('availability', JSON.stringify(availability));
+      doctorData.append('languages', JSON.stringify(["English", "Hindi"]));
 
-      await api.post('/doctors/onboard', doctorData);
+      if (profileImageFile) {
+        doctorData.append('profilePhoto', profileImageFile);
+      }
+
+      certifications
+        .filter((cert) => !cert.isExisting && cert.file)
+        .forEach((cert) => doctorData.append('certifications', cert.file));
+
+      if (isEditMode) {
+        doctorData.append(
+          'retainedCertifications',
+          JSON.stringify(
+            certifications
+              .filter((cert) => cert.isExisting)
+              .map(({ name, url, mimeType }) => ({ name, url, mimeType }))
+          )
+        );
+      }
+
+      const request = isEditMode
+        ? api.put(`/doctors/${doctorToEdit._id}`, doctorData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+        : api.post('/doctors/onboard', doctorData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+
+      await request;
       onSuccess?.();
       onClose();
 
       // Reset form
-      setFormData({
-        fullName: "",
-        gender: "female",
-        dateOfBirth: "",
-        doctorId: "",
-        about: "",
-        phone: "",
-        email: "",
-        address: "",
-        emergencyContactName: "",
-        emergencyContactPhone: "",
-        department: "",
-        specialization: "",
-        workType: "full_time",
-        employmentStartDate: "",
-        salary: "",
-        licenseNumber: "",
-        licenseExpiry: "",
-        schedule: {
-          monday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
-          tuesday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
-          wednesday: { enabled: false, startHour: "15", startMin: "00", endHour: "21", endMin: "00" },
-          thursday: { enabled: true, startHour: "09", startMin: "00", endHour: "17", endMin: "00" },
-          friday: { enabled: true, startHour: "13", startMin: "00", endHour: "18", endMin: "00" },
-          saturday: { enabled: false, startHour: "09", startMin: "00", endHour: "13", endMin: "00" },
-          sunday: { enabled: false, startHour: "09", startMin: "00", endHour: "13", endMin: "00" },
-        },
-        minAppointments: 1,
-        maxAppointments: 18,
-      });
+      setFormData(createInitialFormData());
       setProfilePreview(null);
+      setProfileImageFile(null);
       setCertifications([]);
       setErrors({});
     } catch (error) {
-      console.error('Failed to add doctor:', error);
-      setErrors({ submit: error.response?.data?.message || 'Failed to add doctor' });
+      console.error(`Failed to ${isEditMode ? 'update' : 'add'} doctor:`, error);
+      setErrors({ submit: error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} doctor` });
     } finally {
       setLoading(false);
     }
   };
 
   if (!isOpen) return null;
-
-  const specializations = SPECIALIZATIONS[formData.department] || [];
 
   // Time Select Component
   const TimeSelect = ({ value, onChange, disabled, options }) => (
@@ -302,7 +339,7 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
       <div className="doctor-modal" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="doctor-modal-header">
-          <h2>Add New Doctor</h2>
+          <h2>{isEditMode ? "Edit Doctor" : "Add New Doctor"}</h2>
           <button className="doctor-modal-close" onClick={onClose} type="button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -345,35 +382,34 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
               </div>
 
               <div className="personal-fields">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Full Name</label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      placeholder="Dr. Elena Morales"
-                      className={errors.fullName ? 'error' : ''}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Gender</label>
-                    <div className="radio-group">
-                      {["female", "male", "other"].map(g => (
-                        <label key={g} className="radio-label">
-                          <input
-                            type="radio"
-                            name="gender"
-                            value={g}
-                            checked={formData.gender === g}
-                            onChange={handleChange}
-                          />
-                          <span className="radio-custom"></span>
-                          {g.charAt(0).toUpperCase() + g.slice(1)}
-                        </label>
-                      ))}
-                    </div>
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    placeholder="Dr. Elena Morales"
+                    className={errors.fullName ? 'error' : ''}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Gender</label>
+                  <div className="radio-group">
+                    {["female", "male", "other"].map(g => (
+                      <label key={g} className="radio-label">
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={g}
+                          checked={formData.gender === g}
+                          onChange={handleChange}
+                        />
+                        <span className="radio-custom"></span>
+                        {g.charAt(0).toUpperCase() + g.slice(1)}
+                      </label>
+                    ))}
                   </div>
                 </div>
 
@@ -490,22 +526,8 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
                   className={errors.department ? 'error' : ''}
                 >
                   <option value="">Select Department</option>
-                  {DEPARTMENTS.map(dept => (
+                  {departmentOptions.map(dept => (
                     <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Specialization</label>
-                <select
-                  name="specialization"
-                  value={formData.specialization}
-                  onChange={handleChange}
-                  disabled={!formData.department}
-                >
-                  <option value="">Select Specialization</option>
-                  {specializations.map(spec => (
-                    <option key={spec} value={spec}>{spec}</option>
                   ))}
                 </select>
               </div>
@@ -617,7 +639,11 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                           <polyline points="14 2 14 8 20 8" />
                         </svg>
-                        <span>{cert.name}</span>
+                        {cert.url ? (
+                          <a href={resolveMediaUrl(cert.url)} target="_blank" rel="noreferrer">{cert.name}</a>
+                        ) : (
+                          <span>{cert.name}</span>
+                        )}
                         <button type="button" onClick={() => removeCertification(cert.id)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 6L6 18M6 6l12 12" />
@@ -637,48 +663,41 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
             <p className="section-subtitle">Working Days</p>
 
             <div className="schedule-grid-new">
-              <div className="schedule-column-left">
-                {DAYS.slice(0, 4).map(day => (
-                  <ScheduleRow key={day} day={day} />
-                ))}
-              </div>
-              <div className="schedule-column-right">
-                {DAYS.slice(4).map(day => (
-                  <ScheduleRow key={day} day={day} />
-                ))}
+              {DAYS.map(day => (
+                <ScheduleRow key={day} day={day} />
+              ))}
+            </div>
 
-                <div className="max-appointments-section">
-                  <label>Max Appointment per Day</label>
-                  <div className="appointment-limits">
-                    <div className="limit-item">
-                      <span className="limit-label">Min</span>
-                      <button
-                        type="button"
-                        className="limit-btn minus"
-                        onClick={() => setFormData(prev => ({ ...prev, minAppointments: Math.max(1, prev.minAppointments - 1) }))}
-                      >-</button>
-                      <span className="limit-value">{formData.minAppointments}</span>
-                      <button
-                        type="button"
-                        className="limit-btn plus"
-                        onClick={() => setFormData(prev => ({ ...prev, minAppointments: prev.minAppointments + 1 }))}
-                      >+</button>
-                    </div>
-                    <div className="limit-item">
-                      <span className="limit-label">Max</span>
-                      <button
-                        type="button"
-                        className="limit-btn minus"
-                        onClick={() => setFormData(prev => ({ ...prev, maxAppointments: Math.max(1, prev.maxAppointments - 1) }))}
-                      >-</button>
-                      <span className="limit-value">{formData.maxAppointments}</span>
-                      <button
-                        type="button"
-                        className="limit-btn plus"
-                        onClick={() => setFormData(prev => ({ ...prev, maxAppointments: prev.maxAppointments + 1 }))}
-                      >+</button>
-                    </div>
-                  </div>
+            <div className="max-appointments-section">
+              <label>Max Appointment per Day</label>
+              <div className="appointment-limits">
+                <div className="limit-item">
+                  <span className="limit-label">Min</span>
+                  <button
+                    type="button"
+                    className="limit-btn minus"
+                    onClick={() => setFormData(prev => ({ ...prev, minAppointments: Math.max(1, prev.minAppointments - 1) }))}
+                  >-</button>
+                  <span className="limit-value">{formData.minAppointments}</span>
+                  <button
+                    type="button"
+                    className="limit-btn plus"
+                    onClick={() => setFormData(prev => ({ ...prev, minAppointments: prev.minAppointments + 1 }))}
+                  >+</button>
+                </div>
+                <div className="limit-item">
+                  <span className="limit-label">Max</span>
+                  <button
+                    type="button"
+                    className="limit-btn minus"
+                    onClick={() => setFormData(prev => ({ ...prev, maxAppointments: Math.max(1, prev.maxAppointments - 1) }))}
+                  >-</button>
+                  <span className="limit-value">{formData.maxAppointments}</span>
+                  <button
+                    type="button"
+                    className="limit-btn plus"
+                    onClick={() => setFormData(prev => ({ ...prev, maxAppointments: prev.maxAppointments + 1 }))}
+                  >+</button>
                 </div>
               </div>
             </div>
@@ -691,7 +710,7 @@ function AddDoctorModal({ isOpen, onClose, onSuccess, hospitalId }) {
             Save Draft
           </button>
           <button type="button" className="btn-submit" onClick={() => handleSubmit(false)} disabled={loading}>
-            {loading ? 'Adding...' : 'Add Doctor'}
+            {loading ? (isEditMode ? 'Saving...' : 'Adding...') : (isEditMode ? 'Save Changes' : 'Add Doctor')}
           </button>
         </div>
       </div>

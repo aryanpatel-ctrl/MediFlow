@@ -17,6 +17,7 @@ const notificationSchema = new mongoose.Schema({
       'appointment_cancelled',
       'appointment_rescheduled',
       'queue_update',
+      'queue_started',
       'your_turn',
       'delay_notification',
       'check_in_reminder',

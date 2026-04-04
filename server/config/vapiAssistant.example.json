@@ -1,0 +1,76 @@
+{
+  "name": "MediFlow Appointment Confirmation Assistant",
+  "firstMessage": "Hello, this is MediFlow calling to confirm your appointment. Will you be able to attend as scheduled?",
+  "firstMessageMode": "assistant-speaks-first",
+  "serverUrl": "https://your-public-api.example.com/api/ai-calls/webhook/vapi",
+  "serverMessages": [
+    "tool-calls",
+    "status-update",
+    "end-of-call-report"
+  ],
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "temperature": 0.2,
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are MediFlow’s automated appointment confirmation assistant. Your job is only to confirm attendance, capture a reschedule request, or capture a cancellation. If the patient confirms attendance, call confirm_appointment. If the patient asks to reschedule, collect a new date in YYYY-MM-DD and time in HH:mm, then call request_reschedule. If the patient wants to cancel, call cancel_appointment. Do not provide medical advice."
+      }
+    ],
+    "functions": [
+      {
+        "name": "confirm_appointment",
+        "description": "Use this when the patient clearly confirms attendance.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "confirmationNote": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "request_reschedule",
+        "description": "Use this when the patient wants a new appointment date or time.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "preferredDate": {
+              "type": "string",
+              "description": "YYYY-MM-DD"
+            },
+            "preferredSlotTime": {
+              "type": "string",
+              "description": "HH:mm"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "preferredDate",
+            "preferredSlotTime",
+            "reason"
+          ]
+        }
+      },
+      {
+        "name": "cancel_appointment",
+        "description": "Use this when the patient clearly wants to cancel.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "reason"
+          ]
+        }
+      }
+    ]
+  }
+}

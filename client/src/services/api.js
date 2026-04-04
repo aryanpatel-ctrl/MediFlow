@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_ORIGIN = API_URL.startsWith('http') ? new URL(API_URL).origin : '';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -97,6 +98,12 @@ export const notificationAPI = {
   markRead: (id) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put('/notifications/read-all'),
   delete: (id) => api.delete(`/notifications/${id}`)
+};
+
+export const resolveMediaUrl = (assetPath) => {
+  if (!assetPath) return '';
+  if (/^https?:\/\//i.test(assetPath)) return assetPath;
+  return `${API_ORIGIN}${assetPath}`;
 };
 
 export default api;

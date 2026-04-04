@@ -1,18 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
-
-const SPECIALTIES = [
-  'General Medicine', 'Cardiology', 'Neurology', 'Orthopedics',
-  'Pediatrics', 'Gynecology', 'Dermatology', 'ENT', 'Ophthalmology',
-  'Gastroenterology', 'Pulmonology', 'Psychiatry', 'Urology', 'Emergency'
-];
+import { useHospitalSettings } from '../hooks';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 function DoctorOnboarding() {
   const navigate = useNavigate();
+  const { specialties } = useHospitalSettings();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -22,7 +18,7 @@ function DoctorOnboarding() {
     phone: '',
     password: '',
     // Professional Info
-    specialty: 'General Medicine',
+    specialty: specialties[0] || 'General Medicine',
     qualification: '',
     registrationNumber: '',
     experience: 1,
@@ -44,6 +40,12 @@ function DoctorOnboarding() {
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  useEffect(() => {
+    if (specialties.length > 0 && !specialties.includes(formData.specialty)) {
+      setFormData((prev) => ({ ...prev, specialty: specialties[0] }));
+    }
+  }, [formData.specialty, specialties]);
 
   const toggleDay = (day) => {
     setFormData(prev => ({
@@ -170,12 +172,12 @@ function DoctorOnboarding() {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Specialty *</label>
+                <label>Department *</label>
                 <select
                   value={formData.specialty}
                   onChange={(e) => updateField('specialty', e.target.value)}
                 >
-                  {SPECIALTIES.map(spec => (
+                  {specialties.map(spec => (
                     <option key={spec} value={spec}>{spec}</option>
                   ))}
                 </select>

@@ -63,7 +63,7 @@ export default function Home() {
                       <span className="text-sm">AI</span>
                     </div>
                     <div className="bg-white/20 rounded-2xl rounded-tl-none p-4 max-w-xs">
-                      <p className="text-sm">Hello! I'm MedQueue AI. How can I help you today?</p>
+                      <p className="text-sm">Hello! I'm MediFlow. How can I help you today?</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3 justify-end">
@@ -90,7 +90,7 @@ export default function Home() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold">Why Choose MedQueue AI?</h2>
+            <h2 className="text-3xl font-bold">Why Choose MediFlow?</h2>
             <p className="mt-4 text-gray-600 max-w-2xl mx-auto">
               We're transforming the healthcare experience with cutting-edge technology
             </p>

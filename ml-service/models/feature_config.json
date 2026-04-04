@@ -1,0 +1,30 @@
+{
+  "no_show_features": [
+    "age",
+    "gender",
+    "totalAppointments",
+    "noShowCount",
+    "cancelledCount",
+    "noShowRate",
+    "urgencyScore",
+    "symptomsCount",
+    "hasRedFlags",
+    "dayOfWeek",
+    "hour",
+    "isWeekend",
+    "daysUntilAppointment",
+    "smsReceived"
+  ],
+  "duration_features": [
+    "age",
+    "gender",
+    "urgencyScore",
+    "symptomsCount",
+    "hasRedFlags",
+    "dayOfWeek",
+    "hour",
+    "isWeekend"
+  ],
+  "version": "2.0",
+  "trained_on": "2026-04-04T09:27:19.032632"
+}

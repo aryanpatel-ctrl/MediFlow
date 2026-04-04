@@ -14,6 +14,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     doctorId,
     date,
     slotTime,
+    appointmentType,
     triageData,
     chatSessionId,
     bookingSource = 'web_chat'
@@ -56,6 +57,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     date: new Date(date),
     slotTime,
     slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+    appointmentType: appointmentType || 'Consultation',
     status: 'booked',
     bookingSource,
     triageData,
@@ -259,13 +261,49 @@ router.put('/:id/check-in', protect, asyncHandler(async (req, res) => {
       queue.recalculateWaitTimes();
       await queue.save();
 
-      // Emit socket event
+      // Get patient and doctor info for notifications
+      const patient = await User.findById(appointment.patientId).select('name');
+      const doctor = await Doctor.findById(appointment.doctorId).populate('userId', 'name');
+      const patientName = patient?.name || 'Patient';
+      const doctorUserId = doctor?.userId?._id;
+
+      // Create notification for the doctor
+      if (doctorUserId) {
+        await Notification.create({
+          userId: doctorUserId,
+          type: 'patient_checked_in',
+          title: 'Patient Checked In',
+          message: `${patientName} has checked in for their appointment (Token #${entry.queueNumber})`,
+          relatedId: appointment._id,
+          relatedModel: 'Appointment'
+        });
+      }
+
+      // Emit socket events
       const io = req.app.get('io');
       if (io) {
+        // Notify doctor's queue room
+        io.to(`queue:${appointment.doctorId}`).emit('queue:patient-checked-in', {
+          queueId: queue._id,
+          patientName,
+          queueNumber: entry.queueNumber,
+          summary: queue.getSummary()
+        });
+
         io.to(`queue:${appointment.doctorId}`).emit('queue:update', {
           queueId: queue._id,
           summary: queue.getSummary()
         });
+
+        // Notify hospital admin
+        if (doctor?.hospitalId) {
+          io.to(`hospital:${doctor.hospitalId}`).emit('queue:update', {
+            doctorId: appointment.doctorId,
+            action: 'patient_checked_in',
+            patientName,
+            summary: queue.getSummary()
+          });
+        }
       }
     }
   }
@@ -344,29 +382,178 @@ router.put('/:id/cancel', protect, asyncHandler(async (req, res) => {
 }));
 
 // @route   POST /api/appointments/:id/reschedule
-// @desc    Reschedule appointment
+// @desc    Create reschedule request
 // @access  Private
 router.post('/:id/reschedule', protect, asyncHandler(async (req, res) => {
   const { newDate, newSlotTime, reason } = req.body;
+  const appointment = await Appointment.findById(req.params.id).populate({
+    path: 'doctorId',
+    populate: { path: 'userId', select: 'name _id' }
+  });
 
-  const oldAppointment = await Appointment.findById(req.params.id);
+  if (!appointment) {
+    throw new AppError('Appointment not found', 404);
+  }
+
+  if (!['booked', 'confirmed'].includes(appointment.status)) {
+    throw new AppError(`Cannot request reschedule with status: ${appointment.status}`, 400);
+  }
+
+  if (appointment.rescheduleCount >= 2) {
+    throw new AppError('Maximum reschedule limit reached', 400);
+  }
+
+  if (appointment.rescheduleRequest?.status === 'pending') {
+    throw new AppError('A reschedule request is already pending for this appointment', 400);
+  }
+
+  if (!newDate || !newSlotTime || !reason) {
+    throw new AppError('New date, slot time, and reason are required', 400);
+  }
+
+  const doctor = await Doctor.findById(appointment.doctorId._id || appointment.doctorId);
+  if (!doctor) {
+    throw new AppError('Doctor not found', 404);
+  }
+
+  const availableSlots = await slotGenerator.getAvailableSlots(doctor, new Date(newDate));
+  const isSlotAvailable = availableSlots.some(
+    slot => slot.time === newSlotTime && slot.available
+  );
+
+  if (!isSlotAvailable) {
+    throw new AppError('Selected slot is no longer available', 400);
+  }
+
+  if (req.user.role !== 'patient') {
+    const doctorUserId = appointment.doctorId?.userId?._id?.toString();
+    const isDoctorOwner = req.user.role === 'doctor' && doctorUserId === req.user.id;
+    const isAdmin = req.user.role === 'hospital_admin';
+
+    if (!isDoctorOwner && !isAdmin) {
+      throw new AppError('Not authorized', 403);
+    }
+
+    appointment.status = 'rescheduled';
+    appointment.rescheduleReason = reason;
+    appointment.rescheduleRequest = undefined;
+    await appointment.save();
+
+    const newAppointment = await Appointment.create({
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      hospitalId: appointment.hospitalId,
+      date: new Date(newDate),
+      slotTime: newSlotTime,
+      appointmentType: appointment.appointmentType || 'Consultation',
+      status: 'booked',
+      bookingSource: 'reschedule',
+      triageData: appointment.triageData,
+      isRescheduled: true,
+      originalAppointmentId: appointment._id,
+      rescheduleCount: appointment.rescheduleCount + 1
+    });
+
+    await Notification.createAppointmentNotification(
+      appointment.patientId,
+      'appointment_rescheduled',
+      newAppointment._id
+    );
+
+    notificationService.sendAppointmentRescheduled(appointment, newAppointment, reason).catch(err => {
+      console.error('Reschedule email failed:', err.message);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Appointment rescheduled',
+      oldAppointment: appointment,
+      newAppointment
+    });
+  }
+
+  if (appointment.patientId.toString() !== req.user.id) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  appointment.rescheduleRequest = {
+    status: 'pending',
+    requestedDate: new Date(newDate),
+    requestedSlotTime: newSlotTime,
+    reason,
+    requestedBy: req.user.id,
+    requestedAt: new Date()
+  };
+  await appointment.save();
+
+  const doctorUserId = appointment.doctorId?.userId?._id;
+  if (doctorUserId) {
+    await Notification.create({
+      userId: doctorUserId,
+      type: 'system',
+      title: 'Reschedule Request',
+      message: `${req.user.name || 'Patient'} requested to reschedule the appointment on ${new Date(appointment.date).toLocaleDateString('en-GB')} at ${appointment.slotTime}.`,
+      appointmentId: appointment._id,
+      doctorId: appointment.doctorId._id || appointment.doctorId,
+      hospitalId: appointment.hospitalId,
+      actionType: 'view_appointment',
+      actionUrl: '/appointments'
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Reschedule request sent to doctor',
+    appointment
+  });
+}));
+
+// @route   PUT /api/appointments/:id/reschedule-request/approve
+// @desc    Approve reschedule request
+// @access  Private/Doctor/HospitalAdmin
+router.put('/:id/reschedule-request/approve', protect, asyncHandler(async (req, res) => {
+  const { responseNote } = req.body;
+  const oldAppointment = await Appointment.findById(req.params.id)
+    .populate('patientId', 'name email phone')
+    .populate({
+      path: 'doctorId',
+      populate: { path: 'userId', select: 'name _id' }
+    });
 
   if (!oldAppointment) {
     throw new AppError('Appointment not found', 404);
   }
 
-  // Allow patient or hospital admin to reschedule
-  if (oldAppointment.patientId.toString() !== req.user.id && req.user.role !== 'hospital_admin') {
+  const doctorUserId = oldAppointment.doctorId?.userId?._id?.toString();
+  const isDoctorOwner = req.user.role === 'doctor' && doctorUserId === req.user.id;
+  const isAdmin = req.user.role === 'hospital_admin';
+  if (!isDoctorOwner && !isAdmin) {
     throw new AppError('Not authorized', 403);
   }
 
-  if (oldAppointment.rescheduleCount >= 2) {
-    throw new AppError('Maximum reschedule limit reached', 400);
+  if (oldAppointment.rescheduleRequest?.status !== 'pending') {
+    throw new AppError('No pending reschedule request found', 400);
   }
 
-  // Mark old appointment as rescheduled
+  const requestedDate = oldAppointment.rescheduleRequest.requestedDate;
+  const requestedSlotTime = oldAppointment.rescheduleRequest.requestedSlotTime;
+  const doctor = await Doctor.findById(oldAppointment.doctorId._id || oldAppointment.doctorId);
+
+  const availableSlots = await slotGenerator.getAvailableSlots(doctor, new Date(requestedDate));
+  const isSlotAvailable = availableSlots.some(
+    slot => slot.time === requestedSlotTime && slot.available
+  );
+
+  if (!isSlotAvailable) {
+    throw new AppError('Requested slot is no longer available', 400);
+  }
+
   oldAppointment.status = 'rescheduled';
-  oldAppointment.rescheduleReason = reason;
+  oldAppointment.rescheduleReason = oldAppointment.rescheduleRequest.reason;
+  oldAppointment.rescheduleRequest.status = 'approved';
+  oldAppointment.rescheduleRequest.reviewedBy = req.user.id;
+  oldAppointment.rescheduleRequest.reviewedAt = new Date();
+  oldAppointment.rescheduleRequest.responseNote = responseNote || '';
   await oldAppointment.save();
 
   // Create new appointment
@@ -374,8 +561,9 @@ router.post('/:id/reschedule', protect, asyncHandler(async (req, res) => {
     patientId: oldAppointment.patientId,
     doctorId: oldAppointment.doctorId,
     hospitalId: oldAppointment.hospitalId,
-    date: new Date(newDate),
-    slotTime: newSlotTime,
+    date: new Date(requestedDate),
+    slotTime: requestedSlotTime,
+    appointmentType: oldAppointment.appointmentType || 'Consultation',
     status: 'booked',
     bookingSource: 'reschedule',
     triageData: oldAppointment.triageData,
@@ -392,15 +580,66 @@ router.post('/:id/reschedule', protect, asyncHandler(async (req, res) => {
   );
 
   // Send reschedule email notification with new .ics file (async - don't wait)
-  notificationService.sendAppointmentRescheduled(oldAppointment, newAppointment, reason).catch(err => {
+  const approvedReason = oldAppointment.rescheduleRequest?.reason || oldAppointment.rescheduleReason || 'Approved by doctor';
+  notificationService.sendAppointmentRescheduled(oldAppointment, newAppointment, approvedReason).catch(err => {
     console.error('Reschedule email failed:', err.message);
   });
 
   res.status(200).json({
     success: true,
-    message: 'Appointment rescheduled',
+    message: 'Reschedule request approved',
     oldAppointment,
     newAppointment
+  });
+}));
+
+// @route   PUT /api/appointments/:id/reschedule-request/reject
+// @desc    Reject reschedule request
+// @access  Private/Doctor/HospitalAdmin
+router.put('/:id/reschedule-request/reject', protect, asyncHandler(async (req, res) => {
+  const { responseNote } = req.body;
+  const appointment = await Appointment.findById(req.params.id).populate({
+    path: 'doctorId',
+    populate: { path: 'userId', select: 'name _id' }
+  });
+
+  if (!appointment) {
+    throw new AppError('Appointment not found', 404);
+  }
+
+  const doctorUserId = appointment.doctorId?.userId?._id?.toString();
+  const isDoctorOwner = req.user.role === 'doctor' && doctorUserId === req.user.id;
+  const isAdmin = req.user.role === 'hospital_admin';
+  if (!isDoctorOwner && !isAdmin) {
+    throw new AppError('Not authorized', 403);
+  }
+
+  if (appointment.rescheduleRequest?.status !== 'pending') {
+    throw new AppError('No pending reschedule request found', 400);
+  }
+
+  appointment.rescheduleRequest.status = 'rejected';
+  appointment.rescheduleRequest.reviewedBy = req.user.id;
+  appointment.rescheduleRequest.reviewedAt = new Date();
+  appointment.rescheduleRequest.responseNote = responseNote || '';
+  await appointment.save();
+
+  await Notification.create({
+    userId: appointment.patientId,
+    type: 'system',
+    title: 'Reschedule Request Rejected',
+    message: 'Your doctor declined the reschedule request. Your original appointment remains unchanged.',
+    appointmentId: appointment._id,
+    doctorId: appointment.doctorId._id || appointment.doctorId,
+    hospitalId: appointment.hospitalId,
+    actionType: 'view_appointment',
+    actionUrl: '/my-appointments'
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Reschedule request rejected',
+    appointment
   });
 }));
 
@@ -515,7 +754,7 @@ router.post('/patients/quick-register', protect, asyncHandler(async (req, res) =
   const patient = await User.create({
     name,
     phone,
-    email: email || `${phone}@walkin.medqueue.ai`,
+    email: email || `${phone}@walkin.mediflow.ai`,
     password: tempPassword,
     gender,
     dateOfBirth,
@@ -628,6 +867,7 @@ router.post('/manual', protect, asyncHandler(async (req, res) => {
     date: new Date(date),
     slotTime,
     slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+    appointmentType: appointmentType || 'Consultation',
     status: 'booked',
     bookingSource: 'manual',
     triageData: {

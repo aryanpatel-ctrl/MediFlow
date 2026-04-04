@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks';
 import api from '../services/api';
 import AppLayout from '../layouts/AppLayout';
+import { resolveMediaUrl } from '../services/api';
 
 function SuperAdminDashboard() {
   const { user } = useAuth();
@@ -216,7 +217,11 @@ function SuperAdminDashboard() {
               >
                 <div className="sa-hospital-header">
                   <div className="sa-hospital-avatar">
-                    {hospital.name?.charAt(0).toUpperCase()}
+                    {hospital.logo ? (
+                      <img src={resolveMediaUrl(hospital.logo)} alt={hospital.name} className="hospital-logo-image" />
+                    ) : (
+                      hospital.name?.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="sa-hospital-info">
                     <h3>{hospital.name}</h3>
