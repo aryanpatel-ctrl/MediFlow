@@ -5,6 +5,7 @@ import { useAuth } from "../hooks";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import AppLayout from "../layouts/AppLayout";
+import { resolveMediaUrl } from "../services/api";
 
 const DEFAULT_APPOINTMENT_TYPES = ["Consultation", "Follow-up", "Surgery", "Telemedicine"];
 const DEFAULT_INVENTORY_CATEGORIES = ["Medicines", "Equipment", "Supplies"];
@@ -67,6 +68,8 @@ function HospitalSettings() {
     calendarId: null,
   });
   const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -107,6 +110,7 @@ function HospitalSettings() {
 
       const nextHospital = hospitalRes.data.hospital;
       setHospital(nextHospital);
+      setLogoPreview(nextHospital?.logo ? resolveMediaUrl(nextHospital.logo) : null);
       setSettingsData({
         appointmentTypes: normalizeItems(nextHospital?.appointmentTypes, DEFAULT_APPOINTMENT_TYPES),
         inventoryCategories: normalizeItems(nextHospital?.inventoryCategories, DEFAULT_INVENTORY_CATEGORIES),
@@ -197,20 +201,45 @@ function HospitalSettings() {
 
     setSavingSettings(true);
     try {
-      const payload = {
-        appointmentTypes: settingsData.appointmentTypes,
-        inventoryCategories: settingsData.inventoryCategories,
-        specialties: settingsData.specialties,
-      };
+      let res;
 
-      const res = await api.put(`/hospitals/${hospitalId}`, payload);
+      if (logoFile) {
+        const payload = new FormData();
+        payload.append('appointmentTypes', JSON.stringify(settingsData.appointmentTypes));
+        payload.append('inventoryCategories', JSON.stringify(settingsData.inventoryCategories));
+        payload.append('specialties', JSON.stringify(settingsData.specialties));
+        payload.append('logo', logoFile);
+        res = await api.put(`/hospitals/${hospitalId}`, payload);
+      } else {
+        const payload = {
+          appointmentTypes: settingsData.appointmentTypes,
+          inventoryCategories: settingsData.inventoryCategories,
+          specialties: settingsData.specialties,
+        };
+        res = await api.put(`/hospitals/${hospitalId}`, payload);
+      }
+
       setHospital(res.data.hospital);
+      setLogoPreview(res.data.hospital?.logo ? resolveMediaUrl(res.data.hospital.logo) : null);
+      setLogoFile(null);
       toast.success("Settings updated successfully");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save settings");
     } finally {
       setSavingSettings(false);
     }
+  };
+
+  const handleLogoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setLogoPreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
   if (loading) {
@@ -389,6 +418,27 @@ function HospitalSettings() {
             <div className="settings-card">
               {hospital ? (
                 <div className="profile-info">
+                  <div className="profile-row profile-row--logo">
+                    <span className="label">Logo</span>
+                    <div className="settings-logo-field">
+                      <div className="settings-logo-preview">
+                        {logoPreview ? <img src={logoPreview} alt={`${hospital.name} logo`} /> : <span>{hospital.name?.charAt(0)?.toUpperCase() || "H"}</span>}
+                      </div>
+                      <div className="settings-logo-actions">
+                        <button type="button" className="btn-secondary" onClick={() => document.getElementById("hospital-settings-logo-upload")?.click()}>
+                          Choose Logo
+                        </button>
+                        <small>{logoFile ? logoFile.name : "Upload JPG, JPEG or PNG up to 5MB"}</small>
+                      </div>
+                      <input
+                        id="hospital-settings-logo-upload"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        onChange={handleLogoChange}
+                        hidden
+                      />
+                    </div>
+                  </div>
                   <div className="profile-row">
                     <span className="label">Hospital Name</span>
                     <span className="value">{hospital.name}</span>

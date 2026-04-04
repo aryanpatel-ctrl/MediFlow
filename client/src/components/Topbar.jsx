@@ -13,7 +13,8 @@ import {
   BellRing,
 } from "lucide-react";
 import { useAuth } from "../hooks";
-import api from "../services/api";
+import toast from "react-hot-toast";
+import api, { resolveMediaUrl } from "../services/api";
 
 const formatRole = (role) =>
   (role || "Admin")
@@ -54,15 +55,19 @@ const getNotificationIcon = (type) => {
 };
 
 function Topbar({ title, subtitle, onMenuClick }) {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const dropdownRef = useRef(null);
+  const avatarInputRef = useRef(null);
 
   const userName = user?.name || "City Hospital Admin";
-  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=2A9D8F&color=fff`;
+  const avatarUrl = user?.avatar
+    ? resolveMediaUrl(user.avatar)
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=2A9D8F&color=fff`;
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -122,6 +127,26 @@ function Topbar({ title, subtitle, onMenuClick }) {
     setShowNotifications(!showNotifications);
     if (!showNotifications) {
       fetchNotifications();
+    }
+  };
+
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      await updateProfile(formData).unwrap();
+      toast.success('Profile photo updated');
+    } catch (error) {
+      toast.error(error || 'Failed to update profile photo');
+    } finally {
+      setUploadingAvatar(false);
+      event.target.value = '';
     }
   };
 
@@ -213,14 +238,30 @@ function Topbar({ title, subtitle, onMenuClick }) {
         </button>
 
         <div className="profile-chip">
-          <div className="avatar" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="avatar avatar--uploadable" style={{ padding: 0, overflow: 'hidden' }}>
             <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <button
+              className="avatar-upload-trigger"
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              aria-label="Upload profile photo"
+            >
+              {uploadingAvatar ? '...' : 'Edit'}
+            </button>
           </div>
           <div>
             <strong>{userName}</strong>
             <p>{formatRole(user?.role)}</p>
           </div>
         </div>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/jpg"
+          onChange={handleAvatarUpload}
+          hidden
+        />
       </div>
     </header>
   );

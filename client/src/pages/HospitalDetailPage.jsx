@@ -4,6 +4,7 @@ import { useAuth } from '../hooks';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import AppLayout from '../layouts/AppLayout';
+import { resolveMediaUrl } from '../services/api';
 
 function HospitalDetailPage() {
   const { user } = useAuth();
@@ -96,6 +97,20 @@ function HospitalDetailPage() {
             >
               {hospital.isActive ? 'Deactivate' : 'Activate'}
             </button>
+          </div>
+        </div>
+
+        <div className="settings-card hospital-detail-branding">
+          <div className="settings-logo-preview hospital-detail-branding__logo">
+            {hospital.logo ? (
+              <img src={resolveMediaUrl(hospital.logo)} alt={hospital.name} className="hospital-logo-image" />
+            ) : (
+              <span>{hospital.name?.charAt(0)?.toUpperCase() || 'H'}</span>
+            )}
+          </div>
+          <div className="hospital-detail-branding__content">
+            <h2>{hospital.name}</h2>
+            <p>{hospital.address?.city}, {hospital.address?.state}</p>
           </div>
         </div>
 

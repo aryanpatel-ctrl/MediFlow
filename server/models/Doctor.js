@@ -30,12 +30,19 @@ const doctorSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  licenseExpiry: Date,
   experience: {
     type: Number, // years
     required: true
   },
   bio: String,
   profilePhoto: String,
+  certifications: [{
+    name: { type: String, required: true },
+    url: { type: String, required: true },
+    mimeType: String,
+    resourceType: String,
+  }],
   // Consultation settings
   consultationFee: {
     type: Number,

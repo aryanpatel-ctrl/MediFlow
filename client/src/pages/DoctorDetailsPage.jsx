@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
 import MediFlowDataTable from "../components/DataTable";
-import api from "../services/api";
+import api, { resolveMediaUrl } from "../services/api";
 
 function DoctorDetailsPage() {
   const [searchParams] = useSearchParams();
@@ -277,7 +277,13 @@ function DoctorDetailsPage() {
           <div className="doctor-details-main">
             <section className="doctor-hero-grid">
               <article className="panel doctor-profile-card doctor-section doctor-section--profile">
-                <div className="doctor-profile-photo">{getInitials(doctorName)}</div>
+                <div className="doctor-profile-photo">
+                  {doctor.profilePhoto ? (
+                    <img src={resolveMediaUrl(doctor.profilePhoto)} alt={doctorName} className="doctor-profile-photo__image" />
+                  ) : (
+                    getInitials(doctorName)
+                  )}
+                </div>
                 <div className="doctor-profile-summary">
                   <strong>{doctorName}</strong>
                   <span>{doctorCode}</span>
@@ -335,7 +341,27 @@ function DoctorDetailsPage() {
                     <small>Languages</small>
                     <strong>{doctor.languages?.join(", ") || "English"}</strong>
                   </div>
+                  <div>
+                    <small>License Number</small>
+                    <strong>{doctor.registrationNumber || "--"}</strong>
+                  </div>
+                  <div>
+                    <small>License Expiry</small>
+                    <strong>{doctor.licenseExpiry ? new Date(doctor.licenseExpiry).toLocaleDateString() : "--"}</strong>
+                  </div>
                 </div>
+                {doctor.certifications?.length > 0 && (
+                  <div className="doctor-certifications">
+                    <small>Certifications</small>
+                    <div className="doctor-certifications__list">
+                      {doctor.certifications.map((cert, index) => (
+                        <a key={cert.url || `${cert.name}-${index}`} href={resolveMediaUrl(cert.url)} target="_blank" rel="noreferrer">
+                          {cert.name}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </article>
             </section>
 

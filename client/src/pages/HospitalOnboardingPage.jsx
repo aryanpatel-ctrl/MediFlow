@@ -24,6 +24,8 @@ function HospitalOnboardingPage() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [formData, setFormData] = useState({
     // Step 1: Hospital Details
     name: '',
@@ -122,21 +124,26 @@ function HospitalOnboardingPage() {
 
     setLoading(true);
     try {
-      await api.post('/hospitals/onboard', {
-        name: formData.name,
-        type: formData.type,
-        registrationNumber: formData.registrationNumber,
-        description: formData.description,
-        specialties: formData.specialties,
-        email: formData.email,
-        phone: formData.phone,
-        website: formData.website,
-        address: formData.address,
-        adminName: formData.adminName,
-        adminEmail: formData.adminEmail,
-        adminPhone: formData.adminPhone,
-        adminPassword: formData.adminPassword
-      });
+      const payload = new FormData();
+      payload.append('name', formData.name);
+      payload.append('type', formData.type);
+      payload.append('registrationNumber', formData.registrationNumber);
+      payload.append('description', formData.description);
+      payload.append('specialties', JSON.stringify(formData.specialties));
+      payload.append('email', formData.email);
+      payload.append('phone', formData.phone);
+      payload.append('website', formData.website);
+      payload.append('address', JSON.stringify(formData.address));
+      payload.append('adminName', formData.adminName);
+      payload.append('adminEmail', formData.adminEmail);
+      payload.append('adminPhone', formData.adminPhone);
+      payload.append('adminPassword', formData.adminPassword);
+
+      if (logoFile) {
+        payload.append('logo', logoFile);
+      }
+
+      await api.post('/hospitals/onboard', payload);
 
       toast.success('Hospital created successfully!');
       navigate('/super-admin/hospitals');
@@ -145,6 +152,18 @@ function HospitalOnboardingPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setLogoPreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
   if (user?.role !== 'super_admin') {
@@ -198,6 +217,28 @@ function HospitalOnboardingPage() {
                 className={errors.name ? 'error' : ''}
               />
               {errors.name && <span className="error-text">{errors.name}</span>}
+            </div>
+
+            <div className="hop-form-group">
+              <label>Hospital Logo</label>
+              <div className="doctor-profile-upload">
+                <div className="doctor-profile-upload__preview">
+                  {logoPreview ? <img src={logoPreview} alt="Hospital logo preview" /> : <span>Logo</span>}
+                </div>
+                <div className="doctor-profile-upload__actions">
+                  <button type="button" className="btn-secondary" onClick={() => document.getElementById('super-admin-hospital-logo-upload')?.click()}>
+                    Upload Logo
+                  </button>
+                  <p className="upload-helper-text">JPG, JPEG or PNG up to 5MB</p>
+                </div>
+                <input
+                  id="super-admin-hospital-logo-upload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleLogoChange}
+                  hidden
+                />
+              </div>
             </div>
 
             <div className="hop-form-row">
