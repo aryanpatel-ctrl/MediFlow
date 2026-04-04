@@ -9,7 +9,15 @@ function sanitizeReason(reason, fallback) {
 }
 
 async function markAppointmentConfirmed(appointmentId, context = {}) {
-  const appointment = await Appointment.findById(appointmentId);
+  // Populate appointment with all required details for Google Calendar
+  const appointment = await Appointment.findById(appointmentId)
+    .populate('patientId', 'name email phone')
+    .populate({
+      path: 'doctorId',
+      populate: { path: 'userId', select: 'name' }
+    })
+    .populate('hospitalId', 'name address googleCalendar features');
+
   if (!appointment) {
     throw new AppError('Appointment not found', 404);
   }
@@ -35,8 +43,48 @@ async function markAppointmentConfirmed(appointmentId, context = {}) {
 
   await appointment.save();
 
+  // Add to Google Calendar if connected and not already added
+  const hospital = appointment.hospitalId;
+  if (hospital &&
+      hospital.googleCalendar?.connected &&
+      hospital.features?.googleCalendarEnabled &&
+      !appointment.googleCalendarEventId) {
+    try {
+      const patient = appointment.patientId;
+      const doctor = appointment.doctorId;
+
+      // Calculate end time (assuming 30 min slots)
+      const [startHour, startMin] = appointment.slotTime.split(':').map(Number);
+      const endHour = startMin >= 30 ? startHour + 1 : startHour;
+      const endMin = startMin >= 30 ? startMin - 30 : startMin + 30;
+      const slotEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+
+      const calendarEvent = await calendarService.createAppointmentEvent(hospital, {
+        patientName: patient?.name || 'Patient',
+        patientEmail: patient?.email,
+        patientPhone: patient?.phone,
+        doctorName: doctor?.userId?.name || 'Doctor',
+        specialty: doctor?.specialty || 'General Medicine',
+        date: appointment.date.toISOString().split('T')[0],
+        slotTime: appointment.slotTime,
+        slotEndTime: slotEndTime,
+        triageSummary: appointment.triageSummary,
+        hospitalName: hospital.name,
+        hospitalAddress: hospital.address
+      });
+
+      appointment.googleCalendarEventId = calendarEvent.eventId;
+      await appointment.save();
+
+      console.log(`[AI Call] Google Calendar event created for appointment ${appointmentId}`);
+    } catch (error) {
+      console.error('[AI Call] Failed to create Google Calendar event:', error.message);
+      // Don't throw - calendar is optional, appointment is still confirmed
+    }
+  }
+
   await Notification.createAppointmentNotification(
-    appointment.patientId,
+    appointment.patientId._id || appointment.patientId,
     'appointment_confirmed',
     appointment._id,
     {

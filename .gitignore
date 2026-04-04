@@ -1,53 +1,94 @@
+# =====================
 # Dependencies
+# =====================
 node_modules/
 .pnp/
 .pnp.js
+jspm_packages/
+bower_components/
 
-# Environment files
+# =====================
+# Environment files (CRITICAL - contains secrets)
+# =====================
 .env
+.env.*
+!.env.example
+*.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-*.env
 
-# Firebase/Google Cloud credentials
+# =====================
+# API Keys & Credentials (CRITICAL)
+# =====================
 **/firebase-service-account.json
 **/serviceAccountKey.json
 **/google-credentials.json
+**/credentials.json
+**/secrets.json
+*.pem
+*.key
+*.p12
+*.pfx
 
+# =====================
 # Build outputs
+# =====================
 dist/
 build/
 .next/
 out/
+.nuxt/
+.output/
+.vercel/
+.netlify/
 
+# =====================
 # Logs
+# =====================
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
+# =====================
 # Runtime data
+# =====================
 pids/
 *.pid
 *.seed
 *.pid.lock
 
-# Coverage
+# =====================
+# Coverage & Testing
+# =====================
 coverage/
 .nyc_output/
+*.lcov
+.jest/
+jest-results/
 
+# =====================
 # IDE and editors
+# =====================
 .idea/
 .vscode/
 *.swp
 *.swo
 *.sublime-workspace
 *.sublime-project
+.project
+.classpath
+.settings/
+*.code-workspace
 
+# =====================
 # OS files
+# =====================
 .DS_Store
 .DS_Store?
 ._*
@@ -55,8 +96,11 @@ coverage/
 .Trashes
 ehthumbs.db
 Thumbs.db
+Desktop.ini
 
+# =====================
 # Python (ml-service)
+# =====================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -68,26 +112,74 @@ ENV/
 *.egg-info/
 .eggs/
 *.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
+# =====================
 # ML Model files (large files)
+# =====================
 *.h5
 *.pkl
 *.joblib
 *.model
+*.onnx
+*.pt
+*.pth
 models/*.bin
+*.safetensors
 
+# =====================
 # Temporary files
+# =====================
 tmp/
 temp/
 *.tmp
-
-# Debug
-.debug/
-
-# Testing
-.jest/
-
-# Misc
+*.temp
 *.bak
+*.backup
+
+# =====================
+# Debug
+# =====================
+.debug/
+debug.log
+
+# =====================
+# Package manager locks
+# =====================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# =====================
+# Uploads & User content
+# =====================
+uploads/
+public/uploads/
+storage/
+
+# =====================
+# Database
+# =====================
+*.sqlite
+*.sqlite3
+*.db
+dump.rdb
+
+# =====================
+# Misc
+# =====================
 *.cache
 .cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# =====================
+# Ngrok
+# =====================
+ngrok.yml
+*.ngrok.io

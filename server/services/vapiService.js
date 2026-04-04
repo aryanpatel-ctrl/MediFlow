@@ -113,7 +113,7 @@ function buildToolDefinitions() {
 function buildSystemPrompt({ patientName, doctorName, specialty, hospitalName, appointmentDateLabel, slotTime }) {
   return [
     'You are MediFlow’s automated appointment confirmation assistant.',
-    `You are calling ${patientName} regarding an appointment with Dr. ${doctorName} (${specialty}) at ${hospitalName}.`,
+    `You are calling ${patientName} regarding an appointment with ${doctorName} (${specialty}) at ${hospitalName}.`,
     `The appointment is on ${appointmentDateLabel} at ${slotTime}.`,
     'Your job is only to confirm attendance, capture a reschedule request, or capture a cancellation.',
     'Be concise, polite, and explicit.',
@@ -132,7 +132,7 @@ function buildTransientAssistant(callContext) {
   }
 
   return {
-    firstMessage: `Hello ${callContext.patientName}, this is MediFlow calling to confirm your appointment with Dr. ${callContext.doctorName} today at ${callContext.slotTime}. Will you be able to attend?`,
+    firstMessage: `Hello ${callContext.patientName}, this is MediFlow calling to confirm your appointment with ${callContext.doctorName} at ${callContext.slotTime}. Will you be able to attend?`,
     firstMessageMode: 'assistant-speaks-first',
     serverUrl: `${webhookBaseUrl}/api/ai-calls/webhook/vapi`,
     serverMessages: ['tool-calls', 'status-update', 'end-of-call-report'],
@@ -222,7 +222,7 @@ async function createOutboundCall(callLog, appointment, patient, doctor, hospita
     callLog.assistantId = response.data?.assistantId || VAPI_ASSISTANT_ID;
   }
   callLog.webhookEvents.push({
-    type: 'call-created',
+    eventType: 'call-created',
     payload: response.data
   });
   await callLog.save();
@@ -639,7 +639,7 @@ async function processToolCallsWebhook(message) {
   }
 
   callLog.webhookEvents.push({
-    type: 'tool-calls',
+    eventType: 'tool-calls',
     payload: message
   });
   await callLog.save();
@@ -656,7 +656,7 @@ async function processInformationalWebhook(message) {
   }
 
   callLog.webhookEvents.push({
-    type: message.type,
+    eventType: message.type,
     payload: message
   });
 

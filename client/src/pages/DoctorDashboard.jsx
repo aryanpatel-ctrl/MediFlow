@@ -139,8 +139,10 @@ function DoctorDashboard() {
   // Join queue room when doctor is loaded
   useEffect(() => {
     if (socketConnected && doctor?._id && socketRef.current && !hasJoinedQueue.current) {
-      console.log('Joining queue room:', doctor._id);
-      socketRef.current.emit('join:queue', doctor._id);
+      const doctorIdStr = doctor._id.toString();
+      console.log('[Socket] Joining queue room with doctor ID:', doctorIdStr);
+      console.log('[Socket] Doctor ID type:', typeof doctorIdStr);
+      socketRef.current.emit('join:queue', doctorIdStr);
       hasJoinedQueue.current = true;
     }
   }, [socketConnected, doctor?._id]);
@@ -163,7 +165,8 @@ function DoctorDashboard() {
     };
 
     const handleNewAppointment = (data) => {
-      console.log('New appointment:', data);
+      console.log('[Socket] New appointment received:', data);
+      console.log('[Socket] Current doctor ID:', doctor?._id);
       fetchDoctorData();
       toast.success(`New appointment booked: ${data.patientName || 'Patient'}`, { duration: 3000, icon: '📅' });
     };

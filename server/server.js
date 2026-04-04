@@ -47,8 +47,10 @@ io.on('connection', (socket) => {
 
   // Join queue room for real-time updates
   socket.on('join:queue', (doctorId) => {
-    socket.join(`queue:${doctorId}`);
-    console.log(`Socket joined queue:${doctorId}`);
+    const roomName = `queue:${doctorId}`;
+    socket.join(roomName);
+    console.log(`[Socket] ${socket.id} joined room: ${roomName}`);
+    console.log(`[Socket] Doctor ID type: ${typeof doctorId}, value: ${doctorId}`);
   });
 
   // Leave queue room

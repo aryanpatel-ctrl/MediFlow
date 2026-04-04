@@ -88,7 +88,9 @@ const aiCallLogSchema = new mongoose.Schema({
   assistantMessages: [String],
   errorMessage: String,
   webhookEvents: [{
-    type: String,
+    eventType: {
+      type: String
+    },
     receivedAt: {
       type: Date,
       default: Date.now
