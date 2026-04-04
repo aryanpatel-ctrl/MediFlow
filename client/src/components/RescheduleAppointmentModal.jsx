@@ -22,6 +22,18 @@ function RescheduleAppointmentModal({ isOpen, onClose, onSuccess, appointment })
   // Get today's date for min date
   const today = new Date().toISOString().split("T")[0];
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   // Fetch available slots when date changes
   useEffect(() => {
     if (selectedDate && appointment?.doctorId) {

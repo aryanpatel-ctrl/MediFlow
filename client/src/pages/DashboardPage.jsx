@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import MediFlowDataTable from "../components/DataTable";
 import MetricCard from "../components/MetricCard";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../hooks";
+import { useAuth, useHospitalSettings } from "../hooks";
 import api from "../services/api";
 
-const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@medqueue.ai";
+const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@mediflow.ai";
 const DEPARTMENT_BULLET_TONES = ["dark", "light", "aqua", "soft", "muted", "pale"];
 const CALENDAR_DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -139,7 +140,7 @@ const countAppointmentStats = (appointments) =>
     },
   );
 
-const buildMockDashboardAppointments = (doctors = []) => {
+const buildMockDashboardAppointments = (doctors = [], appointmentTypes = []) => {
   const fallbackDoctors = [
     { doctorName: "Dr. Rajesh Sharma", doctorSpecialty: "General Medicine" },
     { doctorName: "Dr. Priya Patel", doctorSpecialty: "Cardiology" },
@@ -154,6 +155,8 @@ const buildMockDashboardAppointments = (doctors = []) => {
         doctorSpecialty: doctor.specialty || "General Medicine",
       }))
     : fallbackDoctors;
+  const configuredTypes = appointmentTypes.length ? appointmentTypes : ["Consultation"];
+  const getType = (index) => configuredTypes[index % configuredTypes.length];
 
   const pickDoctor = (index) => doctorPool[index % doctorPool.length];
   const today = startOfDay(new Date());
@@ -169,7 +172,7 @@ const buildMockDashboardAppointments = (doctors = []) => {
       patientId: { name: "Alicia Perth", phone: "+62 813-456-7102" },
       patientCode: "#PT-2035-001",
       ...pickDoctor(0),
-      appointmentType: "Consultation",
+      appointmentType: getType(0),
       date: appointmentDate(0),
       slotTime: "08:30",
       status: "completed",
@@ -179,7 +182,7 @@ const buildMockDashboardAppointments = (doctors = []) => {
       patientId: { name: "Bima Kurnia", phone: "+62 813-2256-8941" },
       patientCode: "#PT-2035-024",
       ...pickDoctor(1),
-      appointmentType: "Follow-up",
+      appointmentType: getType(1),
       date: appointmentDate(0),
       slotTime: "09:00",
       status: "completed",
@@ -189,7 +192,7 @@ const buildMockDashboardAppointments = (doctors = []) => {
       patientId: { name: "Clara Wright", phone: "+62 811-6677-2043" },
       patientCode: "#PT-2035-053",
       ...pickDoctor(2),
-      appointmentType: "Consultation",
+      appointmentType: getType(2),
       date: appointmentDate(0),
       slotTime: "09:30",
       status: "in_progress",
@@ -199,7 +202,7 @@ const buildMockDashboardAppointments = (doctors = []) => {
       patientId: { name: "Daniel Evans", phone: "+62 812-7711-9910" },
       patientCode: "#PT-2035-088",
       ...pickDoctor(3),
-      appointmentType: "Consultation",
+      appointmentType: getType(3),
       date: appointmentDate(1),
       slotTime: "10:00",
       status: "booked",
@@ -209,7 +212,7 @@ const buildMockDashboardAppointments = (doctors = []) => {
       patientId: { name: "Emma Brooks", phone: "+62 812-9088-1112" },
       patientCode: "#PT-2035-101",
       ...pickDoctor(4),
-      appointmentType: "Telemedicine",
+      appointmentType: getType(4),
       date: appointmentDate(2),
       slotTime: "11:15",
       status: "confirmed",
@@ -219,7 +222,7 @@ const buildMockDashboardAppointments = (doctors = []) => {
       patientId: { name: "Farhan Malik", phone: "+62 813-1045-5634" },
       patientCode: "#PT-2035-132",
       ...pickDoctor(1),
-      appointmentType: "Surgery",
+      appointmentType: getType(5),
       date: appointmentDate(3),
       slotTime: "13:00",
       status: "cancelled",
@@ -242,6 +245,7 @@ const buildCalendarDays = (dateValue = new Date()) => {
 
 function DashboardPage() {
   const { user } = useAuth();
+  const { appointmentTypes } = useHospitalSettings();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -257,6 +261,67 @@ function DashboardPage() {
   const [appointments, setAppointments] = useState([]);
   const [hospitalInfo, setHospitalInfo] = useState(null);
   const [patientAppointments, setPatientAppointments] = useState([]);
+  const dashboardTableColumns = useMemo(
+    () => [
+      {
+        name: "Name",
+        selector: (row) => row.patientId?.name || "Patient",
+        sortable: true,
+        cell: (row) => (
+          <div className="table-user-cell">
+            <span className="table-avatar">{getInitials(row.patientId?.name || "Patient")}</span>
+            <div className="table-user-info">
+              <span className="table-user-name">{row.patientId?.name || "Patient"}</span>
+              <span className="table-user-email">{row.patientCode || row.patientId?.phone || "--"}</span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        name: "Doctor / Department",
+        selector: (row) => row.doctorName || "Doctor",
+        sortable: true,
+        cell: (row) => (
+          <div className="table-user-info">
+            <span className="table-user-name">{row.doctorName || "Doctor"}</span>
+            <span className="table-user-email">{row.doctorSpecialty || "--"}</span>
+          </div>
+        ),
+      },
+      {
+        name: "Appointment Type",
+        selector: (row) => formatAppointmentType(row),
+        sortable: true,
+      },
+      {
+        name: "Date & Time",
+        selector: (row) => getAppointmentDateTime(row).getTime(),
+        sortable: true,
+        cell: (row) => (
+          <div className="table-user-info">
+            <span className="table-user-name">
+              {getAppointmentDateTime(row).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            <span className="table-user-email">{row.slotTime || "--"}</span>
+          </div>
+        ),
+      },
+      {
+        name: "Status",
+        selector: (row) => row.status,
+        sortable: true,
+        cell: (row) => (
+          <span className={`status-pill status-${getStatusClass(row.status)}`}>
+            {formatAppointmentStatus(row.status)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   useEffect(() => {
     if (user?.role === "doctor") {
@@ -271,7 +336,7 @@ function DashboardPage() {
     } else {
       setLoading(false);
     }
-  }, [user, navigate]);
+  }, [user, navigate, appointmentTypes]);
 
   const fetchHospitalAdminData = async () => {
     try {
@@ -324,7 +389,7 @@ function DashboardPage() {
         .sort(compareAppointmentsAsc);
 
       if (!hospitalAppointments.length && user?.email === TEST_HOSPITAL_ADMIN_EMAIL) {
-        hospitalAppointments = buildMockDashboardAppointments(doctorsWithStatus).sort(compareAppointmentsAsc);
+        hospitalAppointments = buildMockDashboardAppointments(doctorsWithStatus, appointmentTypes).sort(compareAppointmentsAsc);
       }
 
       const todayAppointments = hospitalAppointments.filter((appointment) => isSameDay(appointment.date, new Date()));
@@ -548,28 +613,18 @@ function DashboardPage() {
     const dayDate = new Date(weekStart);
     dayDate.setDate(weekStart.getDate() + index);
 
-    const dailyAppointments = weekAppointments.filter((appointment) => isSameDay(appointment.date, dayDate));
-    const scheduled = dailyAppointments.filter((appointment) =>
-      ["booked", "confirmed"].includes(appointment.status),
-    ).length;
-    const inCare = dailyAppointments.filter((appointment) =>
-      ["checked_in", "in_progress", "in_consultation", "completed"].includes(appointment.status),
-    ).length;
+    const mockData = [[45, 30, 25], [38, 56, 17], [40, 25, 38], [55, 35, 20], [32, 48, 26], [48, 28, 42], [50, 40, 20]];
 
     return {
       day: dayDate.toLocaleDateString("en-US", { weekday: "short" }),
-      scheduled,
-      inCare,
-      total: dailyAppointments.length,
+      scheduled: mockData[index][0],
+      inCare: mockData[index][1],
+      total: mockData[index][2],
     };
   });
 
-  const maxSeriesValue = Math.max(...weekSeries.map((item) => item.total), 0);
+  const maxSeriesValue = 60;
   const getBarHeight = (value) => {
-    if (maxSeriesValue === 0) {
-      return 22;
-    }
-
     return value > 0 ? Math.max(22, Math.round((value / maxSeriesValue) * 170)) : 12;
   };
 
@@ -644,29 +699,29 @@ function DashboardPage() {
 
   const statCards = [
     {
-      label: "Today's Appointments",
-      value: String(stats.totalAppointments),
-      delta: `${stats.completed} completed`,
+      label: "Overall Visitors",
+      value: "24,580",
+      delta: "+12% vs. yesterday",
+      icon: "OV",
+    },
+    {
+      label: "Total Patients",
+      value: "8,340",
+      delta: "+1.5% vs. last week",
+      icon: "TP",
+    },
+    {
+      label: "Appointments",
+      value: "1,275",
+      delta: "+8% vs. yesterday",
       icon: "AP",
-    },
-    {
-      label: "Total Doctors",
-      value: String(stats.totalDoctors || doctors.length),
-      delta: `${availableDoctors} available`,
-      icon: "DR",
-    },
-    {
-      label: "Pending",
-      value: String(stats.pending),
-      delta: stats.ongoing > 0 ? `${stats.ongoing} in consultation` : "Awaiting consultation",
-      icon: "PN",
     },
   ];
 
   return (
     <AppLayout title="Dashboard" subtitle={`Hello ${firstName}, welcome back!`}>
-      <main className="dashboard-content">
-        <section className="dashboard-grid dashboard-grid--hospital">
+      <main className="dashboard-page-content">
+        <section className="dashboard-grid">
           <section className="metric-grid dashboard-section dashboard-section--metrics" aria-label="Overview statistics">
             {statCards.map((card) => (
               <MetricCard key={card.label} {...card} />
@@ -676,9 +731,9 @@ function DashboardPage() {
           <section className="panel panel-chart dashboard-section dashboard-section--chart">
             <div className="panel-header">
               <div>
-                <h2>Appointments by Day</h2>
-                <p>This week appointments</p>
-                <strong className="panel-kpi">{weekAppointments.length}</strong>
+                <h2>Patient by Age Stages</h2>
+                <p>Total Patients</p>
+                <strong className="panel-kpi">465</strong>
               </div>
               <button type="button">This Week</button>
             </div>
@@ -686,15 +741,15 @@ function DashboardPage() {
             <div className="chart-legend">
               <span>
                 <i className="legend-dot legend-dot--soft" />
-                Scheduled
+                Children
               </span>
               <span>
                 <i className="legend-dot legend-dot--teal" />
-                In Care
+                Teens
               </span>
               <span>
                 <i className="legend-dot legend-dot--dark" />
-                Total
+                Adults
               </span>
             </div>
 
@@ -715,15 +770,15 @@ function DashboardPage() {
           <section className="panel panel-donut dashboard-section dashboard-section--departments">
             <div className="panel-header panel-header--tight">
               <div>
-                <h2>Doctors by Departments</h2>
+                <h2>Patient by Departments</h2>
               </div>
             </div>
 
             <div className="donut-wrap">
               <div className="donut-chart">
                 <div>
-                  <strong>{departmentMap.size}</strong>
-                  <span>Departments</span>
+                  <strong>All Patients</strong>
+                  <span style={{color: 'var(--text)', fontSize: '1.4rem', fontWeight: 'bold'}}>8,340</span>
                 </div>
               </div>
             </div>
@@ -748,7 +803,7 @@ function DashboardPage() {
           <section className="panel panel-revenue dashboard-section dashboard-section--revenue">
             <div className="panel-header">
               <div>
-                <h2>Hospital Flow</h2>
+                <h2>Revenue</h2>
               </div>
               <button type="button">Today</button>
             </div>
@@ -803,59 +858,21 @@ function DashboardPage() {
             </div>
 
             <div className="table-wrap">
-              {dashboardTableRows.length > 0 ? (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Doctor / Speciality</th>
-                      <th>Appointment Type</th>
-                      <th>Date &amp; Time</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboardTableRows.map((appointment) => (
-                      <tr key={appointment._id}>
-                        <td>
-                          <div className="table-person">
-                            <span className="table-avatar">
-                              {getInitials(appointment.patientId?.name || "Patient")}
-                            </span>
-                            <div>
-                              <strong>{appointment.patientId?.name || "Patient"}</strong>
-                              <p>{appointment.patientCode || appointment.patientId?.phone || "--"}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="table-meta">
-                            <strong>{appointment.doctorName || "Doctor"}</strong>
-                            <p>{appointment.doctorSpecialty || "--"}</p>
-                          </div>
-                        </td>
-                        <td>{formatAppointmentType(appointment)}</td>
-                        <td>
-                          {getAppointmentDateTime(appointment).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}{" "}
-                          {appointment.slotTime || "--"}
-                        </td>
-                        <td>
-                          <span className={`status-pill status-${getStatusClass(appointment.status)}`}>
-                            {formatAppointmentStatus(appointment.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="empty-state">
-                  <p>No appointments available yet</p>
-                </div>
-              )}
+              <MediFlowDataTable
+                className="dashboard-summary-table"
+                columns={dashboardTableColumns}
+                data={dashboardTableRows}
+                loading={false}
+                searchable={false}
+                pagination={false}
+                noDataMessage="No appointments available yet"
+                onRowClicked={(row) => {
+                  const patientId = row.patientId?._id || row.patientId;
+                  if (patientId) {
+                    navigate(`/patients/${patientId}`);
+                  }
+                }}
+              />
             </div>
           </section>
 

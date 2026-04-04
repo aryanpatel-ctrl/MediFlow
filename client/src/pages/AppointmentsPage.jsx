@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, Calendar, X } from "lucide-react";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../hooks";
+import { useAuth, useHospitalSettings } from "../hooks";
 import api from "../services/api";
+import MediFlowDataTable from "../components/DataTable";
 import AddAppointmentModal from "../components/AddAppointmentModal";
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
 import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal";
+import toast from "react-hot-toast";
 
-const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@medqueue.ai";
-const APPOINTMENT_TYPES = ["Consultation", "Follow-up", "Surgery", "Telemedicine"];
-
+const TEST_HOSPITAL_ADMIN_EMAIL = "cityhospital@mediflow.ai";
 const startOfDay = (dateValue) => {
   const date = new Date(dateValue);
   date.setHours(0, 0, 0, 0);
@@ -102,7 +103,9 @@ const getStatusClass = (status) => {
   }
 };
 
-const buildMockAppointments = () => {
+const buildMockAppointments = (appointmentTypes) => {
+  const configuredTypes = appointmentTypes.length ? appointmentTypes : ["Consultation"];
+  const getType = (index) => configuredTypes[index % configuredTypes.length];
   const today = startOfDay(new Date());
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -118,7 +121,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-001",
       doctorName: "Dr. Rajesh Sharma",
       doctorSpecialty: "General Medicine",
-      appointmentType: "Consultation",
+      appointmentType: getType(0),
       notes: "Chest pain check",
       date: today.toISOString(),
       slotTime: "08:30",
@@ -131,7 +134,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-024",
       doctorName: "Dr. Priya Patel",
       doctorSpecialty: "Cardiology",
-      appointmentType: "Follow-up",
+      appointmentType: getType(1),
       notes: "Post flu review",
       date: today.toISOString(),
       slotTime: "09:00",
@@ -144,7 +147,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-053",
       doctorName: "Dr. Sneha Reddy",
       doctorSpecialty: "Pediatrics",
-      appointmentType: "Consultation",
+      appointmentType: getType(2),
       notes: "Fever and cough",
       date: today.toISOString(),
       slotTime: "09:30",
@@ -157,7 +160,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-079",
       doctorName: "Dr. Amit Kumar",
       doctorSpecialty: "Orthopedics",
-      appointmentType: "Surgery",
+      appointmentType: getType(3),
       notes: "Knee review and imaging",
       date: tomorrow.toISOString(),
       slotTime: "10:00",
@@ -170,7 +173,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-091",
       doctorName: "Dr. Kiran Mehta",
       doctorSpecialty: "Dermatology",
-      appointmentType: "Telemedicine",
+      appointmentType: getType(4),
       notes: "Skin rash follow-up",
       date: dayAfterTomorrow.toISOString(),
       slotTime: "11:15",
@@ -183,7 +186,7 @@ const buildMockAppointments = () => {
       patientCode: "#PT-2035-129",
       doctorName: "Dr. Priya Patel",
       doctorSpecialty: "Cardiology",
-      appointmentType: "Follow-up",
+      appointmentType: getType(5),
       notes: "ECG result discussion",
       date: thirdDay.toISOString(),
       slotTime: "13:00",
@@ -252,6 +255,7 @@ const buildTypeBars = (typeSummary) => {
 
 function AppointmentsPage() {
   const { user } = useAuth();
+  const { appointmentTypes } = useHospitalSettings();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -263,7 +267,7 @@ function AppointmentsPage() {
 
   useEffect(() => {
     fetchAppointments(true); // Show loading only on initial load
-  }, [user]);
+  }, [user, appointmentTypes]);
 
   const fetchAppointments = async (showLoading = false) => {
     if (showLoading) {
@@ -302,7 +306,7 @@ function AppointmentsPage() {
       let allAppointments = appointmentGroups.flat();
 
       if (user?.email === TEST_HOSPITAL_ADMIN_EMAIL && allAppointments.length === 0) {
-        allAppointments = buildMockAppointments();
+        allAppointments = buildMockAppointments(appointmentTypes);
       }
 
       allAppointments.sort((left, right) => {
@@ -392,7 +396,7 @@ function AppointmentsPage() {
   const maxTrendCount = Math.max(...trendData.map((item) => item.count), 1);
   const highlightedTrendIndex = trendData.findIndex((item) => item.count === maxTrendCount && item.count > 0);
 
-  const typeSummary = APPOINTMENT_TYPES.map((label) => {
+  const typeSummary = appointmentTypes.map((label) => {
     const count = filteredAppointments.filter((appointment) => appointment.appointmentType === label).length;
     const percent = filteredStats.total > 0 ? Math.round((count / filteredStats.total) * 100) : 0;
 
@@ -453,6 +457,153 @@ function AppointmentsPage() {
     },
   ];
 
+  // Check if appointment can be cancelled/rescheduled (moved before loading check for hooks)
+  const canModifyAppointment = (appointment) => {
+    const status = appointment.status?.toLowerCase();
+    return !["completed", "cancelled", "no_show", "rescheduled"].includes(status);
+  };
+
+  // DataTable columns definition (must be before any return for hooks rules)
+  const tableColumns = useMemo(() => [
+    {
+      name: "Patient",
+      selector: (row) => row.patientId?.name || "Patient",
+      sortable: true,
+      cell: (row) => (
+        <div
+          className="table-user-cell"
+          onClick={() => {
+            const patientId = row.patientId?._id || row.patientId;
+            if (patientId) navigate(`/patients/${patientId}`);
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <div
+            className="table-avatar"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "var(--accent)",
+              color: "white",
+              fontWeight: 600,
+              fontSize: "0.75rem",
+            }}
+          >
+            {(row.patientId?.name || "P").split(" ").map((part) => part[0]).join("").slice(0, 2)}
+          </div>
+          <div className="table-user-info">
+            <span className="table-user-name" style={{ color: "var(--accent)" }}>
+              {row.patientId?.name || "Patient"}
+            </span>
+            <span className="table-user-email">{row.patientCode || "#PT-000000"}</span>
+          </div>
+        </div>
+      ),
+      minWidth: "180px",
+    },
+    {
+      name: "Phone",
+      selector: (row) => row.patientId?.phone || "--",
+      sortable: true,
+      minWidth: "130px",
+    },
+    {
+      name: "Doctor",
+      selector: (row) => row.doctorName,
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-info">
+          <span className="table-user-name">{row.doctorName}</span>
+          <span className="table-user-email">{row.doctorSpecialty}</span>
+        </div>
+      ),
+      minWidth: "160px",
+    },
+    {
+      name: "Type",
+      selector: (row) => row.appointmentType,
+      sortable: true,
+      minWidth: "120px",
+    },
+    {
+      name: "Date & Time",
+      selector: (row) => new Date(row.date).getTime(),
+      sortable: true,
+      cell: (row) => (
+        <div className="table-user-info">
+          <span className="table-user-name">
+            {new Date(row.date).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          <span className="table-user-email">
+            {row.slotEndTime ? `${row.slotTime} - ${row.slotEndTime}` : row.slotTime}
+          </span>
+        </div>
+      ),
+      minWidth: "140px",
+    },
+    {
+      name: "Status",
+      selector: (row) => row.status,
+      sortable: true,
+      cell: (row) => (
+        <span className={`status-badge ${getStatusClass(row.status)}`}>
+          {formatAppointmentStatus(row.status)}
+        </span>
+      ),
+      minWidth: "110px",
+    },
+    {
+      name: "Actions",
+      cell: (row) => (
+        <div className="table-actions">
+          <button
+            className="table-action-btn view"
+            onClick={() => {
+              const patientId = row.patientId?._id || row.patientId;
+              if (patientId) navigate(`/patients/${patientId}`);
+            }}
+            title="View Patient"
+          >
+            <Eye size={16} />
+          </button>
+          {canModifyAppointment(row) && (
+            <>
+              <button
+                className="table-action-btn edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedAppointment(row);
+                  setShowRescheduleModal(true);
+                }}
+                title="Reschedule"
+              >
+                <Calendar size={16} />
+              </button>
+              <button
+                className="table-action-btn delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedAppointment(row);
+                  setShowCancelModal(true);
+                }}
+                title="Cancel"
+              >
+                <X size={16} />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+      ignoreRowClick: true,
+      minWidth: "120px",
+    },
+  ], [navigate]);
+
   if (loading) {
     return (
       <AppLayout title="Appointments" subtitle="Loading...">
@@ -491,16 +642,6 @@ function AppointmentsPage() {
     fetchAppointments(false);
   };
 
-  const handleCancelClick = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowCancelModal(true);
-  };
-
-  const handleRescheduleClick = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowRescheduleModal(true);
-  };
-
   const handleCancelSuccess = () => {
     // Optimistic update - mark appointment as cancelled in state
     if (selectedAppointment) {
@@ -531,10 +672,38 @@ function AppointmentsPage() {
     fetchAppointments(false);
   };
 
-  // Check if appointment can be cancelled/rescheduled
-  const canModifyAppointment = (appointment) => {
-    const status = appointment.status?.toLowerCase();
-    return !["completed", "cancelled", "no_show", "rescheduled"].includes(status);
+  // Handle bulk delete
+  const handleBulkDelete = async (selectedRows) => {
+    // Filter only appointments that can be cancelled
+    const cancellableAppointments = selectedRows.filter(
+      (apt) => !["completed", "cancelled", "no_show", "rescheduled"].includes(apt.status)
+    );
+
+    if (cancellableAppointments.length === 0) {
+      toast.error("No appointments can be cancelled (already completed/cancelled)");
+      return;
+    }
+
+    const skipped = selectedRows.length - cancellableAppointments.length;
+    const message = skipped > 0
+      ? `${cancellableAppointments.length} appointment(s) will be cancelled. ${skipped} already completed/cancelled will be skipped.`
+      : `Are you sure you want to cancel ${cancellableAppointments.length} appointment(s)?`;
+
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    try {
+      await Promise.all(
+        cancellableAppointments.map((apt) =>
+          api.put(`/appointments/${apt._id}/cancel`, { reason: "Bulk cancellation by admin" })
+        )
+      );
+      toast.success(`${cancellableAppointments.length} appointment(s) cancelled`);
+      fetchAppointments(false);
+    } catch (error) {
+      toast.error("Failed to cancel some appointments");
+    }
   };
 
   return (
@@ -607,15 +776,16 @@ function AppointmentsPage() {
                 ))}
               </div>
 
-              {trendData.map((item, index) => (
+              {trendData.map((item) => (
                 <div className="appointment-trends-bar" key={item.label}>
-                  {index === (highlightedTrendIndex >= 0 ? highlightedTrendIndex : 0) && item.count > 0 ? (
-                    <div className="appointment-tooltip">
-                      <strong>{item.label}</strong>
-                      <span>{item.count} Appointments</span>
-                    </div>
-                  ) : null}
-                  <span style={{ height: `${Math.max(22, Math.round((item.count / maxTrendCount) * 106))}px` }} />
+                  <div className="appointment-tooltip">
+                    <strong>{item.label}</strong>
+                    <span>{item.count} Appointment{item.count !== 1 ? 's' : ''}</span>
+                  </div>
+                  <span
+                    className="appointment-trends-bar__fill"
+                    style={{ height: `${Math.max(22, Math.round((item.count / maxTrendCount) * 106))}px` }}
+                  />
                   <small>{item.day}</small>
                 </div>
               ))}
@@ -631,139 +801,64 @@ function AppointmentsPage() {
             </div>
 
             <div className="appointment-type-summary">
-              {typeSummary.map((item) => (
-                <article className="appointment-type-item" key={item.label}>
+              {typeSummary.map((item, index) => (
+                <article
+                  className={`appointment-type-item appointment-type-item--${['dark', 'teal', 'soft', 'light'][index]}`}
+                  key={item.label}
+                >
+                  <div className="appointment-type-item__indicator" />
                   <strong>{item.label}</strong>
-                  <span>{item.percent}%</span>
+                  <span className="appointment-type-item__percent">{item.percent}%</span>
                   <small>{item.note}</small>
                 </article>
               ))}
             </div>
 
-            <div className="appointment-type-bars" aria-hidden="true">
-              {typeBars.map((bar) => (
-                <span
-                  key={bar.id}
-                  className={`appointment-type-bar${bar.tone ? ` appointment-type-bar--${bar.tone}` : ""}`}
-                />
-              ))}
+            <div className="appointment-type-bars">
+              {typeBars.map((bar) => {
+                const typeName = bar.id.split('-')[0];
+                return (
+                  <div
+                    key={bar.id}
+                    className={`appointment-type-bar${bar.tone ? ` appointment-type-bar--${bar.tone}` : ""}`}
+                  >
+                    <span className="appointment-type-bar__tooltip">{typeName}</span>
+                  </div>
+                );
+              })}
             </div>
           </article>
         </section>
 
-        <section className="panel appointment-table-card">
-          <div className="appointment-table-header">
-            <div>
-              <h2>Appointments</h2>
-              <p>{filteredAppointments.length} appointments - {getFilterLabel()}</p>
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            {filteredAppointments.length > 0 ? (
-              <table className="appointment-table">
-                <thead>
-                  <tr>
-                    <th />
-                    <th>Name</th>
-                    <th>Phone Number</th>
-                    <th>Doctor</th>
-                    <th>Appointment Type</th>
-                    <th>Notes</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAppointments.map((appointment) => (
-                    <tr key={appointment._id}>
-                      <td>
-                        <span className="table-check" aria-hidden="true" />
-                      </td>
-                      <td>
-                        <div
-                          className="table-person table-person-clickable"
-                          onClick={() => {
-                            const patientId = appointment.patientId?._id || appointment.patientId;
-                            if (patientId) {
-                              navigate(`/patients/${patientId}`);
-                            }
-                          }}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <span className="table-avatar">
-                            {(appointment.patientId?.name || "P").split(" ").map((part) => part[0]).join("").slice(0, 2)}
-                          </span>
-                          <div>
-                            <strong style={{ color: "#0d9488" }}>{appointment.patientId?.name || "Patient"}</strong>
-                            <p>{appointment.patientCode || "#PT-000000"}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{appointment.patientId?.phone || "--"}</td>
-                      <td>
-                        <div className="table-meta">
-                          <strong>{appointment.doctorName}</strong>
-                          <p>{appointment.doctorSpecialty}</p>
-                        </div>
-                      </td>
-                      <td>{appointment.appointmentType}</td>
-                      <td>{appointment.notes}</td>
-                      <td>
-                        <div className="table-meta">
-                          <strong>{new Date(appointment.date).toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}</strong>
-                          <p>{appointment.slotEndTime ? `${appointment.slotTime} - ${appointment.slotEndTime}` : appointment.slotTime}</p>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`status-pill status-${getStatusClass(appointment.status)}`}>
-                          {formatAppointmentStatus(appointment.status)}
-                        </span>
-                      </td>
-                      <td>
-                        {canModifyAppointment(appointment) ? (
-                          <div className="action-buttons">
-                            <button
-                              className="btn-action btn-action-reschedule"
-                              onClick={() => handleRescheduleClick(appointment)}
-                              title="Reschedule"
-                            >
-                              Reschedule
-                            </button>
-                            <button
-                              className="btn-action btn-action-cancel"
-                              onClick={() => handleCancelClick(appointment)}
-                              title="Cancel"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="action-disabled">--</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty-state">
-                <p>No appointments found for {getFilterLabel().toLowerCase()}</p>
-                <button
-                  className="btn-add-appointment"
-                  onClick={() => setShowAddModal(true)}
-                  style={{ marginTop: '1rem' }}
-                >
-                  <span>+</span> Add Appointment
-                </button>
+        <section className="appointment-table-section">
+          <MediFlowDataTable
+            title={
+              <div className="datatable-title">
+                <h2>Appointments</h2>
+                <p>{filteredAppointments.length} appointments - {getFilterLabel()}</p>
               </div>
-            )}
-          </div>
+            }
+            columns={tableColumns}
+            data={filteredAppointments}
+            loading={loading}
+            selectableRows={true}
+            onBulkDelete={handleBulkDelete}
+            searchable={true}
+            searchFields={["patientId.name", "patientId.phone", "doctorName", "appointmentType", "status"]}
+            pagination={true}
+            paginationPerPage={10}
+            paginationRowsPerPageOptions={[10, 25, 50, 100]}
+            noDataMessage={`No appointments found for ${getFilterLabel().toLowerCase()}`}
+            actions={
+              <button
+                className="btn-primary"
+                onClick={() => setShowAddModal(true)}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <span>+</span> Add Appointment
+              </button>
+            }
+          />
         </section>
 
         {/* Add Appointment Modal */}

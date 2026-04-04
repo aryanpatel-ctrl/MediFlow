@@ -663,7 +663,7 @@ function HospitalOnboarding() {
       <div className="onboarding-container">
         <div className="onboarding-header">
           <h1>Hospital Registration</h1>
-          <p>Join MedQueue AI to streamline your appointment management</p>
+          <p>Join MediFlow to streamline your appointment management</p>
         </div>
 
         <div className="progress-bar">

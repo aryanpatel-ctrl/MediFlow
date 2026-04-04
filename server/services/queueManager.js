@@ -1,4 +1,6 @@
-const { Queue, Appointment, Doctor, Notification, User } = require('../models');
+const { Queue, Appointment, Doctor, Notification, User, Hospital } = require('../models');
+const { sendPushNotification, sendSMS } = require('./notificationService');
+const mlService = require('./mlService');
 
 /**
  * Initialize queue for a doctor for today
@@ -50,7 +52,7 @@ async function callNextPatient(doctorId) {
   today.setHours(0, 0, 0, 0);
 
   const queue = await Queue.findOne({ doctorId, date: today })
-    .populate('entries.patientId', 'name phone')
+    .populate('entries.patientId', 'name phone fcmToken notificationPreferences')
     .populate('entries.appointmentId');
 
   if (!queue) {
@@ -114,8 +116,8 @@ async function callNextPatient(doctorId) {
     consultationStartTime: new Date()
   });
 
-  // Recalculate wait times for remaining patients
-  queue.recalculateWaitTimes();
+  // Recalculate wait times with ML enhancement
+  await recalculateMLWaitTimes(queue);
   await queue.save();
 
   // Update average consultation time
@@ -128,24 +130,55 @@ async function callNextPatient(doctorId) {
     nextPatient.appointmentId
   );
 
+  // Send FCM push notification
+  const patient = await User.findById(nextPatient.patientId);
+  if (patient?.fcmToken && patient.notificationPreferences?.push !== false) {
+    await sendPushNotification(patient.fcmToken, {
+      title: "It's Your Turn!",
+      body: 'Please proceed to the consultation room immediately.',
+      data: {
+        type: 'your_turn',
+        appointmentId: nextPatient.appointmentId.toString(),
+        queueNumber: String(nextPatient.queueNumber)
+      }
+    });
+  }
+
   // Notify next 2 patients that they're coming up
   const upcomingPatients = queue.entries
     .filter(e => e.status === 'waiting')
     .sort((a, b) => a.position - b.position)
     .slice(0, 2);
 
-  for (const patient of upcomingPatients) {
+  for (const entry of upcomingPatients) {
+    const position = queue.entries.filter(
+      e => e.status === 'waiting' && e.position < entry.position
+    ).length + 1;
+
     await Notification.createQueueNotification(
-      patient.patientId,
+      entry.patientId,
       'queue_update',
-      patient.appointmentId,
+      entry.appointmentId,
       {
-        position: queue.entries.filter(
-          e => e.status === 'waiting' && e.position < patient.position
-        ).length + 1,
-        waitTime: patient.estimatedWaitTime
+        position,
+        waitTime: entry.estimatedWaitTime
       }
     );
+
+    // Send FCM push notification for position update
+    const upcomingPatient = await User.findById(entry.patientId);
+    if (upcomingPatient?.fcmToken && upcomingPatient.notificationPreferences?.push !== false) {
+      await sendPushNotification(upcomingPatient.fcmToken, {
+        title: 'Queue Update',
+        body: `You're #${position} in queue. Estimated wait: ${entry.estimatedWaitTime} mins`,
+        data: {
+          type: 'queue_update',
+          appointmentId: entry.appointmentId.toString(),
+          position: String(position),
+          waitTime: String(entry.estimatedWaitTime)
+        }
+      });
+    }
   }
 
   return {
@@ -214,6 +247,19 @@ async function completeCurrentPatient(doctorId, notes = null) {
     currentEntry.appointmentId
   );
 
+  // Send FCM push for feedback request
+  const completedPatient = await User.findById(currentEntry.patientId);
+  if (completedPatient?.fcmToken && completedPatient.notificationPreferences?.push !== false) {
+    await sendPushNotification(completedPatient.fcmToken, {
+      title: 'How was your visit?',
+      body: 'Please take a moment to rate your experience.',
+      data: {
+        type: 'feedback_request',
+        appointmentId: currentEntry.appointmentId.toString()
+      }
+    });
+  }
+
   return {
     message: 'Patient consultation completed',
     summary: queue.getSummary()
@@ -257,13 +303,154 @@ async function skipPatient(doctorId, reason, markAsNoShow = false) {
     });
   }
 
-  queue.recalculateWaitTimes();
+  await recalculateMLWaitTimes(queue);
   await queue.save();
 
   return {
     message: markAsNoShow ? 'Patient marked as no-show' : 'Patient skipped',
     summary: queue.getSummary()
   };
+}
+
+/**
+ * Auto-detect no-shows based on configurable timeout
+ * Called periodically by a scheduler/cron job
+ */
+async function autoDetectNoShows(hospitalId = null) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Build query
+  const queueQuery = { date: today, status: 'active' };
+  if (hospitalId) {
+    queueQuery.hospitalId = hospitalId;
+  }
+
+  const queues = await Queue.find(queueQuery)
+    .populate('hospitalId', 'autoNoShowAfter autoNoShowEnabled');
+
+  const results = {
+    processed: 0,
+    noShowsDetected: 0,
+    details: []
+  };
+
+  for (const queue of queues) {
+    const hospital = queue.hospitalId;
+
+    // Check if auto no-show detection is enabled
+    if (!hospital?.autoNoShowEnabled) {
+      continue;
+    }
+
+    const autoNoShowMinutes = hospital.autoNoShowAfter || 30; // Default 30 minutes
+    const now = new Date();
+
+    // Find waiting patients whose slot time has passed by more than autoNoShowMinutes
+    const waitingEntries = queue.entries.filter(e => e.status === 'waiting');
+
+    for (const entry of waitingEntries) {
+      // Parse slot time
+      const [hours, minutes] = (entry.slotTime || '09:00').split(':').map(Number);
+      const slotDateTime = new Date(today);
+      slotDateTime.setHours(hours, minutes, 0, 0);
+
+      // Calculate minutes since slot time
+      const minutesSinceSlot = Math.floor((now - slotDateTime) / (1000 * 60));
+
+      // Check if patient hasn't checked in and time exceeded
+      if (minutesSinceSlot > autoNoShowMinutes && !entry.checkInTime) {
+        // Mark as no-show
+        entry.status = 'no_show';
+        entry.notes = `Auto-detected no-show (${minutesSinceSlot} mins past slot time)`;
+
+        queue.noShowPatients++;
+
+        // Update appointment
+        await Appointment.findByIdAndUpdate(entry.appointmentId, {
+          status: 'no_show',
+          noShowDetectedAt: new Date(),
+          noShowReason: 'auto_detected'
+        });
+
+        // Update user no-show count
+        await User.findByIdAndUpdate(entry.patientId, {
+          $inc: { noShowCount: 1 }
+        });
+
+        // Send notification to patient
+        const patient = await User.findById(entry.patientId);
+        if (patient) {
+          await Notification.createQueueNotification(
+            entry.patientId,
+            'no_show',
+            entry.appointmentId,
+            { reason: 'You did not check in for your appointment' }
+          );
+
+          // Send SMS notification
+          if (patient.phone && patient.notificationPreferences?.sms !== false) {
+            await sendSMS(
+              patient.phone,
+              `Your appointment was marked as missed because you didn't check in within ${autoNoShowMinutes} minutes of your slot time. Please reschedule if needed.`
+            );
+          }
+        }
+
+        results.noShowsDetected++;
+        results.details.push({
+          queueId: queue._id,
+          patientId: entry.patientId,
+          appointmentId: entry.appointmentId,
+          slotTime: entry.slotTime,
+          minutesPast: minutesSinceSlot
+        });
+      }
+    }
+
+    // Recalculate wait times if any no-shows detected
+    if (results.noShowsDetected > 0) {
+      await recalculateMLWaitTimes(queue);
+    }
+
+    await queue.save();
+    results.processed++;
+  }
+
+  return results;
+}
+
+/**
+ * Proactive no-show risk alerts for upcoming appointments
+ */
+async function getNoShowRiskAlerts(hospitalId, date = new Date()) {
+  const highRiskAppointments = await mlService.identifyHighRiskAppointments(date, 0.3);
+
+  // Group by risk level
+  const alerts = {
+    high: [],
+    medium: [],
+    total: highRiskAppointments.length
+  };
+
+  for (const risk of highRiskAppointments) {
+    const alertData = {
+      appointmentId: risk.appointment?._id,
+      patientName: risk.appointment?.patientId?.name,
+      slotTime: risk.appointment?.slotTime,
+      doctorId: risk.appointment?.doctorId,
+      probability: risk.noShowProbability,
+      interventions: risk.recommendedInterventions
+    };
+
+    if (risk.riskLevel === 'high') {
+      alerts.high.push(alertData);
+    } else {
+      alerts.medium.push(alertData);
+    }
+  }
+
+  return alerts;
 }
 
 /**
@@ -288,6 +475,7 @@ async function addWalkIn(doctorId, patientId, triageData) {
     hospitalId: doctor.hospitalId,
     date: today,
     slotTime: new Date().toTimeString().slice(0, 5),
+    appointmentType: 'Walk-in',
     status: 'checked_in',
     bookingSource: 'walk_in',
     triageData,
@@ -302,7 +490,7 @@ async function addWalkIn(doctorId, patientId, triageData) {
     triageData?.urgencyScore || 3
   );
 
-  queue.recalculateWaitTimes();
+  await recalculateMLWaitTimes(queue);
   await queue.save();
 
   appointment.queueNumber = queueNumber;
@@ -314,6 +502,41 @@ async function addWalkIn(doctorId, patientId, triageData) {
     estimatedWait: queue.getEstimatedWait(queue.entries.length),
     summary: queue.getSummary()
   };
+}
+
+/**
+ * ML-enhanced wait time recalculation
+ */
+async function recalculateMLWaitTimes(queue) {
+  const waitingEntries = queue.entries.filter(e => e.status === 'waiting');
+
+  if (waitingEntries.length === 0) return;
+
+  try {
+    // Try ML-based prediction
+    const mlResult = await mlService.getMLWaitTimes(
+      waitingEntries,
+      queue.avgConsultationTime || 15,
+      queue.currentDelay || 0
+    );
+
+    if (mlResult?.success && mlResult.waitTimes) {
+      // Apply ML predictions
+      for (const prediction of mlResult.waitTimes) {
+        const entry = queue.entries.find(e => e._id?.toString() === prediction.entryId);
+        if (entry) {
+          entry.estimatedWaitTime = prediction.estimatedWait;
+          entry.noShowProbability = prediction.noShowProbability;
+        }
+      }
+      return;
+    }
+  } catch (error) {
+    console.error('ML wait time prediction failed, using fallback:', error.message);
+  }
+
+  // Fallback: standard calculation
+  queue.recalculateWaitTimes();
 }
 
 /**
@@ -345,7 +568,7 @@ async function updateAverageConsultationTime(doctorId) {
     const queue = await Queue.findOne({ doctorId, date: today });
     if (queue) {
       queue.avgConsultationTime = avgDuration;
-      queue.recalculateWaitTimes();
+      await recalculateMLWaitTimes(queue);
       await queue.save();
     }
   }
@@ -378,7 +601,10 @@ async function getQueueDisplay(doctorId) {
       queueNumber: e.queueNumber,
       name: e.patientId?.name,
       estimatedWait: e.estimatedWaitTime,
-      urgency: e.urgencyScore
+      urgency: e.urgencyScore,
+      noShowRisk: e.noShowProbability ?
+        (e.noShowProbability >= 0.5 ? 'high' : e.noShowProbability >= 0.3 ? 'medium' : 'low')
+        : null
     }));
 
   const currentPatient = queue.currentIndex >= 0
@@ -397,12 +623,58 @@ async function getQueueDisplay(doctorId) {
   };
 }
 
+/**
+ * Check in patient
+ */
+async function checkInPatient(appointmentId) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const appointment = await Appointment.findById(appointmentId);
+  if (!appointment) {
+    throw new Error('Appointment not found');
+  }
+
+  const queue = await Queue.findOne({
+    doctorId: appointment.doctorId,
+    date: today
+  });
+
+  if (!queue) {
+    throw new Error('Queue not found');
+  }
+
+  const entry = queue.entries.find(
+    e => e.appointmentId?.toString() === appointmentId.toString()
+  );
+
+  if (!entry) {
+    throw new Error('Patient not in queue');
+  }
+
+  entry.checkInTime = new Date();
+  appointment.status = 'checked_in';
+  appointment.checkInTime = new Date();
+
+  await Promise.all([queue.save(), appointment.save()]);
+
+  return {
+    message: 'Patient checked in successfully',
+    queueNumber: entry.queueNumber,
+    estimatedWait: entry.estimatedWaitTime
+  };
+}
+
 module.exports = {
   initializeQueue,
   callNextPatient,
   completeCurrentPatient,
   skipPatient,
+  autoDetectNoShows,
+  getNoShowRiskAlerts,
   addWalkIn,
+  recalculateMLWaitTimes,
   updateAverageConsultationTime,
-  getQueueDisplay
+  getQueueDisplay,
+  checkInPatient
 };

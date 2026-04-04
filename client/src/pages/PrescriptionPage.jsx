@@ -285,7 +285,7 @@ function PrescriptionPage() {
 
   if (loading) {
     return (
-      <AppLayout title="Create Prescription" subtitle="Loading...">
+      <AppLayout title="Create Prescription">
         <div className="loading-screen">
           <div className="loading-spinner"></div>
           <p>Loading...</p>
@@ -296,7 +296,7 @@ function PrescriptionPage() {
 
   if (!patient) {
     return (
-      <AppLayout title="Create Prescription" subtitle="Patient not found">
+      <AppLayout title="Create Prescription">
         <div className="error-state">
           <p>Patient not found. Please select a patient first.</p>
           <button className="btn-primary" onClick={() => navigate('/patients')}>
@@ -310,7 +310,6 @@ function PrescriptionPage() {
   return (
     <AppLayout
       title="Create Prescription"
-      subtitle={`For ${patient.userId?.name || 'Patient'}`}
     >
       <main className="prescription-page">
         <form onSubmit={handleSubmit} className="prescription-form">
@@ -320,23 +319,23 @@ function PrescriptionPage() {
             <div className="patient-info-grid">
               <div className="info-item">
                 <label>Name</label>
-                <span>{patient.userId?.name || 'N/A'}</span>
+                <span>{patient.userId?.name || patient.name || 'N/A'}</span>
               </div>
               <div className="info-item">
                 <label>Age</label>
                 <span>
-                  {patient.userId?.dateOfBirth
-                    ? Math.floor((new Date() - new Date(patient.userId.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
+                  {patient.userId?.dateOfBirth || patient.dateOfBirth
+                    ? Math.floor((new Date() - new Date(patient.userId?.dateOfBirth || patient.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
                     : 'N/A'} years
                 </span>
               </div>
               <div className="info-item">
                 <label>Gender</label>
-                <span>{patient.userId?.gender || 'N/A'}</span>
+                <span>{patient.userId?.gender || patient.gender || 'N/A'}</span>
               </div>
               <div className="info-item">
                 <label>Phone</label>
-                <span>{patient.userId?.phone || 'N/A'}</span>
+                <span>{patient.userId?.phone || patient.phone || 'N/A'}</span>
               </div>
             </div>
           </section>

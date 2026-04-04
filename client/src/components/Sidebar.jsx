@@ -1,6 +1,37 @@
+import { useState } from "react";
+import {
+  ActivitySquare,
+  CalendarDays,
+  Grid2x2,
+  LayoutGrid,
+  LogOut,
+  MessageSquare,
+  Stethoscope,
+  Users,
+  Package,
+  Settings,
+  Menu,
+  X,
+  AlertTriangle,
+} from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../hooks";
+
+const navIcons = {
+  Appointments: ActivitySquare,
+  "Book Appointment": MessageSquare,
+  Calendar: CalendarDays,
+  Dashboard: Grid2x2,
+  Departments: LayoutGrid,
+  Doctors: Stethoscope,
+  "My Appointments": CalendarDays,
+  "My Dashboard": Grid2x2,
+  Patients: Users,
+  Queue: CalendarDays,
+  Inventory: Package,
+  Settings: Settings,
+};
 
 // Navigation items by role
 // Roles: hospital_admin, doctor, patient
@@ -14,13 +45,15 @@ const getNavigationItems = (role) => {
       { label: "Doctors", shortLabel: "DR", path: "/doctors" },
       { label: "Departments", shortLabel: "DP", path: "/departments" },
       { label: "Calendar", shortLabel: "CL", path: "/calendar" },
+      { label: "Inventory", shortLabel: "IN", path: "/inventory" },
+      { label: "Settings", shortLabel: "ST", path: "/settings" },
     ];
   }
 
   if (role === 'doctor') {
     return [
       { label: "My Dashboard", shortLabel: "DB", path: "/doctor/dashboard" },
-      { label: "My Patients", shortLabel: "PT", path: "/patients" },
+      { label: "Patients", shortLabel: "PT", path: "/patients" },
       { label: "Appointments", shortLabel: "AP", path: "/appointments" },
     ];
   }
@@ -32,42 +65,74 @@ const getNavigationItems = (role) => {
   ];
 };
 
-function Sidebar() {
+function Sidebar({ isCompactLayout, isSidebarOpen, setIsSidebarOpen }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const userName = user?.name || "City Hospital Admin";
+  const avatarUrl = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=2A9D8F&color=fff`;
 
   const navigationItems = getNavigationItems(user?.role);
 
-  const handleSignOut = () => {
+  const handleSignOutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
     toast.success("Logged out successfully");
     navigate("/login");
   };
 
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <span className="brand-mark">MQ</span>
-        <div>
-          <strong>MedQueue AI</strong>
-          <p>Smart Healthcare</p>
+    <aside className={`sidebar ${isSidebarOpen ? 'is-open' : ''}`}>
+      <div className="brand" style={{ justifyContent: 'space-between', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span className="brand-mark" aria-hidden="true">
+            <Stethoscope size={18} strokeWidth={2.2} />
+          </span>
+          <div className="brand-text">
+            <strong>MediFlow</strong>
+            <p>{user?.role === "patient" ? "Patient workspace" : "Hospital workspace"}</p>
+          </div>
         </div>
+        <button
+          className="hamburger-menu" 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          type="button"
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          style={{ background: 'transparent', color: 'var(--text-soft)', padding: '4px' }}
+        >
+          {isCompactLayout ? (isSidebarOpen ? <X size={20} /> : <Menu size={20} />) : <X size={20} />}
+        </button>
       </div>
 
-      <nav className="nav-list" aria-label="Primary">
-        {navigationItems.map((item) => (
-          <NavLink
-            className={({ isActive }) => `nav-item${isActive ? " is-active" : ""}`}
-            to={item.path}
-            key={item.label}
-            end={item.path === "/" || item.path === "/doctor/dashboard"}
-          >
-            <span className="nav-icon" aria-hidden="true">
-              {item.shortLabel}
-            </span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+      <nav aria-label="Primary" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", margin: "0 -12px", padding: "0 12px" }}>
+        <ul className="nav-list" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {navigationItems.map((item) => (
+            <li key={item.label}>
+              <NavLink
+                className={({ isActive }) => `nav-item${isActive ? " is-active" : ""}`}
+                to={item.path}
+                end={item.path === "/" || item.path === "/doctor/dashboard"}
+              >
+                <span className="nav-icon" aria-hidden="true">
+                  {(() => {
+                    const Icon = navIcons[item.label];
+                    return Icon ? <Icon size={16} strokeWidth={2} /> : item.shortLabel;
+                  })()}
+                </span>
+                <span>{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
       </nav>
 
       {/* AI Triage Card - Show for patients */}
@@ -84,48 +149,50 @@ function Sidebar() {
         </div>
       )}
 
-      {/* Hospital Info - Show for hospital admin */}
-      {user?.role === 'hospital_admin' && (
-        <div className="sidebar-upgrade">
-          <div className="upgrade-illustration">
-            <span>H</span>
-          </div>
-          <h3>Hospital Admin</h3>
-          <p>Manage appointments, patients, doctors, departments, and queue.</p>
-          <NavLink to="/settings" style={{ textDecoration: "none" }}>
-            <button type="button">Settings</button>
-          </NavLink>
-        </div>
-      )}
 
-      {/* Doctor Info */}
-      {user?.role === 'doctor' && (
-        <div className="sidebar-upgrade">
-          <div className="upgrade-illustration">
-            <span>Q</span>
-          </div>
-          <h3>Queue Management</h3>
-          <p>Manage your patient queue and consultations.</p>
-        </div>
-      )}
 
-      {user && (
-        <div className="sidebar-user">
-          <div className="sidebar-user-info">
-            <span className="sidebar-user-avatar">
-              {user.name?.charAt(0).toUpperCase()}
-            </span>
-            <div>
-              <strong>{user.name}</strong>
-              <p>{user.role?.replace("_", " ")}</p>
+
+      <div className="sidebar-footer">
+        {user && (
+          <div className="sidebar-user">
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-avatar" style={{ padding: 0, overflow: 'hidden' }}>
+                <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </span>
+              <div>
+                <strong>{userName}</strong>
+                <p>{user?.role?.replace("_", " ") || "Admin"}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button className="sign-out" type="button" onClick={handleSignOutClick} style={{ width: '100%' }}>
+          <LogOut size={15} strokeWidth={2} />
+          Sign Out
+        </button>
+      </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="logout-confirm-overlay" onClick={handleCancelLogout}>
+          <div className="logout-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="logout-confirm-icon">
+              <AlertTriangle size={32} strokeWidth={1.5} />
+            </div>
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to sign out of your account?</p>
+            <div className="logout-confirm-actions">
+              <button className="logout-cancel-btn" type="button" onClick={handleCancelLogout}>
+                Cancel
+              </button>
+              <button className="logout-confirm-btn" type="button" onClick={handleConfirmLogout}>
+                Yes, Sign Out
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      <button className="sign-out" type="button" onClick={handleSignOut}>
-        Sign Out
-      </button>
     </aside>
   );
 }

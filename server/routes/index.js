@@ -10,6 +10,7 @@ const queueRoutes = require('./queue');
 const notificationRoutes = require('./notifications');
 const medicineRoutes = require('./medicines');
 const prescriptionRoutes = require('./prescriptions');
+const loadBalancingRoutes = require('./loadBalancing');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -21,12 +22,13 @@ router.use('/queue', queueRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/medicines', medicineRoutes);
 router.use('/prescriptions', prescriptionRoutes);
+router.use('/load-balancing', loadBalancingRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'MedQueue API is running',
+    message: 'MediFlow API is running',
     timestamp: new Date().toISOString()
   });
 });

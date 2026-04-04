@@ -6,7 +6,7 @@ export const navigationItems = [
   { label: "Patients", shortLabel: "PT", path: "/patients" },
   { label: "Doctors", shortLabel: "DR", path: "/doctors" },
   { label: "Departments", shortLabel: "DP", path: "/departments" },
-  { label: "Messages", shortLabel: "MS", path: "/messages" },
+
 ];
 
 export const statCards = [

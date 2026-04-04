@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import AppLayout from '../layouts/AppLayout';
 import { useAuth } from '../hooks';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5002';
 
 function DoctorDashboard() {
   const { user } = useAuth();
@@ -13,6 +16,9 @@ function DoctorDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const socketRef = useRef(null);
+  const hasJoinedQueue = useRef(false);
 
   // Fetch doctor profile and queue
   useEffect(() => {
@@ -101,6 +107,77 @@ function DoctorDashboard() {
       setActionLoading(false);
     }
   };
+
+  // Initialize socket connection
+  useEffect(() => {
+    socketRef.current = io(SOCKET_URL, {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+    });
+
+    const socket = socketRef.current;
+
+    socket.on('connect', () => {
+      console.log('Doctor Dashboard socket connected:', socket.id);
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Doctor Dashboard socket disconnected');
+      setSocketConnected(false);
+      hasJoinedQueue.current = false;
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
+
+  // Join queue room when doctor is loaded
+  useEffect(() => {
+    if (socketConnected && doctor?._id && socketRef.current && !hasJoinedQueue.current) {
+      console.log('Joining queue room:', doctor._id);
+      socketRef.current.emit('join:queue', doctor._id);
+      hasJoinedQueue.current = true;
+    }
+  }, [socketConnected, doctor?._id]);
+
+  // Socket event listeners for real-time updates
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !socketConnected || !doctor) return;
+
+    const handleQueueUpdate = (data) => {
+      console.log('Queue update received:', data);
+      fetchDoctorData();
+      toast.success('Queue updated', { duration: 2000, icon: '🔄' });
+    };
+
+    const handlePatientCheckedIn = (data) => {
+      console.log('Patient checked in:', data);
+      fetchDoctorData();
+      toast.success(`New patient checked in: ${data.patientName || 'Patient'}`, { duration: 3000, icon: '👋' });
+    };
+
+    const handleNewAppointment = (data) => {
+      console.log('New appointment:', data);
+      fetchDoctorData();
+      toast.success(`New appointment booked: ${data.patientName || 'Patient'}`, { duration: 3000, icon: '📅' });
+    };
+
+    socket.on('queue:update', handleQueueUpdate);
+    socket.on('queue:patient-checked-in', handlePatientCheckedIn);
+    socket.on('appointment:new', handleNewAppointment);
+
+    return () => {
+      socket.off('queue:update', handleQueueUpdate);
+      socket.off('queue:patient-checked-in', handlePatientCheckedIn);
+      socket.off('appointment:new', handleNewAppointment);
+    };
+  }, [socketConnected, doctor]);
 
   if (loading) {
     return (

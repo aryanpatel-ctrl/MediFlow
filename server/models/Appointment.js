@@ -27,6 +27,10 @@ const appointmentSchema = new mongoose.Schema({
     required: true
   },
   slotEndTime: String, // "09:15"
+  appointmentType: {
+    type: String,
+    trim: true
+  },
   // Status
   status: {
     type: String,

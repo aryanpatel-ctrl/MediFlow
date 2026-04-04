@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { Notification, User } = require('../models');
+const { sendFCMNotification, sendMulticastFCMNotification, sendToTopic } = require('../config/firebase');
 
 // Email transporter
 let transporter = null;
@@ -44,7 +45,7 @@ function generateICSFile(appointment, doctor, hospital, patient) {
     return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   };
 
-  const uid = `${appointment._id}@medqueue.ai`;
+  const uid = `${appointment._id}@mediflow.ai`;
   const now = formatICSDate(new Date());
   const start = formatICSDate(startDate);
   const end = formatICSDate(endDate);
@@ -69,7 +70,7 @@ function generateICSFile(appointment, doctor, hospital, patient) {
   const icsContent = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//MedQueue AI//Appointment//EN',
+    'PRODID:-//MediFlow//Appointment//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:REQUEST',
     'BEGIN:VEVENT',
@@ -113,7 +114,7 @@ async function sendEmail(to, subject, html, attachments = []) {
     }
 
     const mailOptions = {
-      from: `"MedQueue AI" <${process.env.EMAIL_USER}>`,
+      from: `"MediFlow" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html
@@ -267,8 +268,8 @@ async function sendAppointmentConfirmation(appointment) {
 
         <div style="background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; border: 1px solid #e5e7eb; border-top: none;">
           <p style="color: #6b7280; margin: 0; font-size: 12px;">
-            Thank you for choosing MedQueue AI!<br>
-            Need help? Contact us at ${hospital?.phone || 'support@medqueue.ai'}
+            Thank you for choosing MediFlow!<br>
+            Need help? Contact us at ${hospital?.phone || 'support@mediflow.ai'}
           </p>
         </div>
       </div>
@@ -304,7 +305,7 @@ async function sendAppointmentConfirmation(appointment) {
 
   // SMS
   if (user.phone && user.notificationPreferences?.sms !== false) {
-    const smsMessage = `MedQueue AI: Appointment confirmed with Dr. ${doctorName} on ${formattedDate} at ${appointment.slotTime}. Queue #${appointment.queueNumber || 'TBD'}. Please arrive 15 mins early.`;
+    const smsMessage = `MediFlow: Appointment confirmed with Dr. ${doctorName} on ${formattedDate} at ${appointment.slotTime}. Queue #${appointment.queueNumber || 'TBD'}. Please arrive 15 mins early.`;
 
     const smsResult = await sendSMS(user.phone, smsMessage);
 
@@ -347,7 +348,7 @@ async function sendAppointmentReminder(appointment) {
 
   // SMS reminder
   if (user.phone && user.notificationPreferences?.sms !== false) {
-    const smsMessage = `MedQueue Reminder: Appointment with Dr. ${doctor.userId.name} tomorrow (${formattedDate}) at ${appointment.slotTime}. Reply CANCEL to cancel.`;
+    const smsMessage = `MediFlow Reminder: Appointment with Dr. ${doctor.userId.name} tomorrow (${formattedDate}) at ${appointment.slotTime}. Reply CANCEL to cancel.`;
     await sendSMS(user.phone, smsMessage);
   }
 }
@@ -391,7 +392,7 @@ async function sendYourTurnNotification(patientId, appointmentId) {
 
   // SMS
   if (user.phone) {
-    await sendSMS(user.phone, 'MedQueue: It\'s your turn! Please proceed to the consultation room.');
+    await sendSMS(user.phone, 'MediFlow: It\'s your turn! Please proceed to the consultation room.');
   }
 
   // Push
@@ -408,9 +409,71 @@ async function sendYourTurnNotification(patientId, appointmentId) {
  * Send push notification (FCM)
  */
 async function sendPushNotification(token, { title, body, data }) {
-  // TODO: Implement FCM push notifications
-  console.log('Push notification:', { token, title, body, data });
-  return { sent: true };
+  if (!token) {
+    console.log('No FCM token provided, skipping push notification');
+    return { sent: false, error: 'No token' };
+  }
+
+  const result = await sendFCMNotification(token, { title, body }, data || {});
+
+  // If token is invalid, remove it from user
+  if (result.shouldRemoveToken) {
+    try {
+      await User.findOneAndUpdate(
+        { fcmToken: token },
+        { $unset: { fcmToken: 1 } }
+      );
+      console.log('Removed invalid FCM token from user');
+    } catch (err) {
+      console.error('Error removing invalid token:', err.message);
+    }
+  }
+
+  return {
+    sent: result.success,
+    messageId: result.messageId,
+    error: result.error
+  };
+}
+
+/**
+ * Send push notification to multiple users
+ */
+async function sendBulkPushNotification(userIds, { title, body, data }) {
+  const users = await User.find({
+    _id: { $in: userIds },
+    fcmToken: { $exists: true, $ne: null },
+    'notificationPreferences.push': { $ne: false }
+  }).select('fcmToken');
+
+  const tokens = users.map(u => u.fcmToken).filter(Boolean);
+
+  if (tokens.length === 0) {
+    return { sent: false, error: 'No valid tokens' };
+  }
+
+  const result = await sendMulticastFCMNotification(tokens, { title, body }, data || {});
+
+  // Clean up invalid tokens
+  if (result.failedTokens && result.failedTokens.length > 0) {
+    await User.updateMany(
+      { fcmToken: { $in: result.failedTokens } },
+      { $unset: { fcmToken: 1 } }
+    );
+  }
+
+  return {
+    sent: result.success,
+    successCount: result.successCount,
+    failureCount: result.failureCount
+  };
+}
+
+/**
+ * Send push notification to all users in a hospital
+ */
+async function sendHospitalBroadcast(hospitalId, { title, body, data }) {
+  return sendToTopic(`hospital_${hospitalId}`, { title, body }, data || {});
 }
 
 /**
@@ -439,7 +502,7 @@ async function sendDelayNotification(doctorId, delayMinutes, reason) {
     if (user.phone && user.notificationPreferences?.sms !== false) {
       await sendSMS(
         user.phone,
-        `MedQueue: There's a ${delayMinutes} minute delay. ${reason ? `Reason: ${reason}` : ''} We apologize for the inconvenience.`
+        `MediFlow: There's a ${delayMinutes} minute delay. ${reason ? `Reason: ${reason}` : ''} We apologize for the inconvenience.`
       );
     }
   }
@@ -524,8 +587,8 @@ async function sendAppointmentCancellation(appointment, reason) {
 
         <div style="background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; border: 1px solid #e5e7eb; border-top: none;">
           <p style="color: #6b7280; margin: 0; font-size: 12px;">
-            MedQueue AI - ${hospitalName}<br>
-            Contact: ${hospital?.phone || 'support@medqueue.ai'}
+            MediFlow - ${hospitalName}<br>
+            Contact: ${hospital?.phone || 'support@mediflow.ai'}
           </p>
         </div>
       </div>
@@ -542,7 +605,7 @@ async function sendAppointmentCancellation(appointment, reason) {
 
   // SMS
   if (user.phone && user.notificationPreferences?.sms !== false) {
-    const smsMessage = `MedQueue AI: Your appointment with Dr. ${doctorName} on ${formattedDate} at ${appointment.slotTime} has been cancelled. ${reason ? `Reason: ${reason}` : ''} Please rebook if needed.`;
+    const smsMessage = `MediFlow: Your appointment with Dr. ${doctorName} on ${formattedDate} at ${appointment.slotTime} has been cancelled. ${reason ? `Reason: ${reason}` : ''} Please rebook if needed.`;
     await sendSMS(user.phone, smsMessage);
   }
 }
@@ -660,8 +723,8 @@ async function sendAppointmentRescheduled(oldAppointment, newAppointment, reason
 
         <div style="background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; border: 1px solid #e5e7eb; border-top: none;">
           <p style="color: #6b7280; margin: 0; font-size: 12px;">
-            MedQueue AI - ${hospitalName}<br>
-            Contact: ${hospital?.phone || 'support@medqueue.ai'}
+            MediFlow - ${hospitalName}<br>
+            Contact: ${hospital?.phone || 'support@mediflow.ai'}
           </p>
         </div>
       </div>
@@ -687,7 +750,7 @@ async function sendAppointmentRescheduled(oldAppointment, newAppointment, reason
 
   // SMS
   if (user.phone && user.notificationPreferences?.sms !== false) {
-    const smsMessage = `MedQueue AI: Your appointment has been rescheduled. NEW: Dr. ${doctorName} on ${newFormattedDate} at ${newAppointment.slotTime}. Please arrive 15 mins early.`;
+    const smsMessage = `MediFlow: Your appointment has been rescheduled. NEW: Dr. ${doctorName} on ${newFormattedDate} at ${newAppointment.slotTime}. Please arrive 15 mins early.`;
     await sendSMS(user.phone, smsMessage);
   }
 }
@@ -696,6 +759,8 @@ module.exports = {
   sendEmail,
   sendSMS,
   sendPushNotification,
+  sendBulkPushNotification,
+  sendHospitalBroadcast,
   sendAppointmentConfirmation,
   sendAppointmentCancellation,
   sendAppointmentRescheduled,

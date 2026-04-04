@@ -57,7 +57,7 @@ async function seedSuperAdmin() {
 
     const superAdmin = await User.create({
       name: 'Super Admin',
-      email: 'admin@medqueue.ai',
+      email: 'admin@mediflow.ai',
       phone: '+91 9999999999',
       password: hashedPassword,
       role: 'super_admin',
@@ -67,7 +67,7 @@ async function seedSuperAdmin() {
 
     console.log('\n✅ Super Admin Created Successfully!');
     console.log('=====================================');
-    console.log('  Email:    admin@medqueue.ai');
+    console.log('  Email:    admin@mediflow.ai');
     console.log('  Password: superadmin123');
     console.log('  Role:     super_admin');
     console.log('=====================================');

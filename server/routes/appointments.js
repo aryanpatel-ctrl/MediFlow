@@ -14,6 +14,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     doctorId,
     date,
     slotTime,
+    appointmentType,
     triageData,
     chatSessionId,
     bookingSource = 'web_chat'
@@ -56,6 +57,7 @@ router.post('/', protect, asyncHandler(async (req, res) => {
     date: new Date(date),
     slotTime,
     slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+    appointmentType: appointmentType || 'Consultation',
     status: 'booked',
     bookingSource,
     triageData,
@@ -259,13 +261,49 @@ router.put('/:id/check-in', protect, asyncHandler(async (req, res) => {
       queue.recalculateWaitTimes();
       await queue.save();
 
-      // Emit socket event
+      // Get patient and doctor info for notifications
+      const patient = await User.findById(appointment.patientId).select('name');
+      const doctor = await Doctor.findById(appointment.doctorId).populate('userId', 'name');
+      const patientName = patient?.name || 'Patient';
+      const doctorUserId = doctor?.userId?._id;
+
+      // Create notification for the doctor
+      if (doctorUserId) {
+        await Notification.create({
+          userId: doctorUserId,
+          type: 'patient_checked_in',
+          title: 'Patient Checked In',
+          message: `${patientName} has checked in for their appointment (Token #${entry.queueNumber})`,
+          relatedId: appointment._id,
+          relatedModel: 'Appointment'
+        });
+      }
+
+      // Emit socket events
       const io = req.app.get('io');
       if (io) {
+        // Notify doctor's queue room
+        io.to(`queue:${appointment.doctorId}`).emit('queue:patient-checked-in', {
+          queueId: queue._id,
+          patientName,
+          queueNumber: entry.queueNumber,
+          summary: queue.getSummary()
+        });
+
         io.to(`queue:${appointment.doctorId}`).emit('queue:update', {
           queueId: queue._id,
           summary: queue.getSummary()
         });
+
+        // Notify hospital admin
+        if (doctor?.hospitalId) {
+          io.to(`hospital:${doctor.hospitalId}`).emit('queue:update', {
+            doctorId: appointment.doctorId,
+            action: 'patient_checked_in',
+            patientName,
+            summary: queue.getSummary()
+          });
+        }
       }
     }
   }
@@ -376,6 +414,7 @@ router.post('/:id/reschedule', protect, asyncHandler(async (req, res) => {
     hospitalId: oldAppointment.hospitalId,
     date: new Date(newDate),
     slotTime: newSlotTime,
+    appointmentType: oldAppointment.appointmentType || 'Consultation',
     status: 'booked',
     bookingSource: 'reschedule',
     triageData: oldAppointment.triageData,
@@ -515,7 +554,7 @@ router.post('/patients/quick-register', protect, asyncHandler(async (req, res) =
   const patient = await User.create({
     name,
     phone,
-    email: email || `${phone}@walkin.medqueue.ai`,
+    email: email || `${phone}@walkin.mediflow.ai`,
     password: tempPassword,
     gender,
     dateOfBirth,
@@ -628,6 +667,7 @@ router.post('/manual', protect, asyncHandler(async (req, res) => {
     date: new Date(date),
     slotTime,
     slotEndTime: calculateEndTime(slotTime, doctor.slotDuration),
+    appointmentType: appointmentType || 'Consultation',
     status: 'booked',
     bookingSource: 'manual',
     triageData: {

@@ -59,6 +59,7 @@ io.on('connection', (socket) => {
   // Join hospital room (for admin dashboard)
   socket.on('join:hospital', (hospitalId) => {
     socket.join(`hospital:${hospitalId}`);
+    console.log(`Socket joined hospital:${hospitalId}`);
   });
 
   socket.on('disconnect', () => {
@@ -72,16 +73,27 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
+// Initialize schedulers for auto no-show detection
+const schedulerService = require('./services/schedulerService');
+
 server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════╗
-║         MedQueue AI Server Started            ║
+║         MediFlow Server Started               ║
 ╠═══════════════════════════════════════════════╣
 ║  Port: ${PORT}                                    ║
 ║  Mode: ${process.env.NODE_ENV || 'development'}                          ║
 ║  API:  http://localhost:${PORT}/api               ║
 ╚═══════════════════════════════════════════════╝
   `);
+
+  // Start schedulers in production/development
+  if (process.env.ENABLE_SCHEDULERS !== 'false') {
+    schedulerService.initializeSchedulers({
+      noShowIntervalMinutes: parseInt(process.env.NO_SHOW_CHECK_INTERVAL) || 5,
+      highRiskIntervalMinutes: parseInt(process.env.HIGH_RISK_CHECK_INTERVAL) || 30
+    });
+  }
 });
 
 // Handle unhandled promise rejections

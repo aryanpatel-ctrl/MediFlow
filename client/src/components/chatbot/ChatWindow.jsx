@@ -84,7 +84,7 @@ function ChatWindow({ onTriageComplete, onFindDoctors }) {
         <div className="chat-window__title">
           <span className="chat-window__avatar">AI</span>
           <div>
-            <h3>MedQueue AI Receptionist</h3>
+            <h3>MediFlow AI Receptionist</h3>
             <p>{triageComplete ? '✓ Assessment Complete' : 'How can I help you today?'}</p>
           </div>
         </div>

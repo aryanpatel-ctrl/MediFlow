@@ -1,6 +1,17 @@
 import { useEffect } from "react";
-import { Route, Routes, Navigate } from "react-router-dom";
+import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./hooks";
+
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
 
 // Pages
 import AppointmentsPage from "./pages/AppointmentsPage";
@@ -13,7 +24,7 @@ import DepartmentsPage from "./pages/DepartmentsPage";
 import DepartmentDetailsPage from "./pages/DepartmentDetailsPage";
 import CalendarPage from "./pages/CalendarPage";
 import InventoryPage from "./pages/InventoryPage";
-import MessagesPage from "./pages/MessagesPage";
+
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
 import ChatPage from "./pages/ChatPage";
@@ -23,8 +34,9 @@ import MyAppointmentsPage from "./pages/MyAppointmentsPage";
 import HospitalSettings from "./pages/HospitalSettings";
 import PrescriptionPage from "./pages/PrescriptionPage";
 import QueueDashboardPage from "./pages/QueueDashboardPage";
+import LandingPage from "./components/landing/VoiceflowLandingPage";
 
-// Protected Route Component
+// Protected Route Component - redirects to home if not logged in
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
@@ -32,13 +44,33 @@ function ProtectedRoute({ children }) {
     return (
       <div className="loading-screen">
         <div className="loading-spinner"></div>
-        <p>Loading MedQueue AI...</p>
+        <p>Loading MediFlow...</p>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/home" replace />;
+  }
+
+  return children;
+}
+
+// Public Route Component - redirects to dashboard if already logged in
+function PublicRoute({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Loading MediFlow...</p>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -52,10 +84,27 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <Routes>
-      {/* Auth Routes */}
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Landing Page - Public (redirects to dashboard if logged in) */}
+        <Route path="/home" element={
+          <PublicRoute>
+            <LandingPage />
+          </PublicRoute>
+        } />
+
+        {/* Auth Routes - Public (redirects to dashboard if logged in) */}
+        <Route path="/signup" element={
+          <PublicRoute>
+            <SignupPage />
+          </PublicRoute>
+        } />
+        <Route path="/login" element={
+          <PublicRoute>
+            <LoginPage />
+          </PublicRoute>
+        } />
 
       {/* Hospital Admin Settings */}
       <Route
@@ -188,14 +237,6 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/messages"
-        element={
-          <ProtectedRoute>
-            <MessagesPage />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Prescription Page - Doctor */}
       <Route
@@ -217,9 +258,10 @@ function App() {
         }
       />
 
-      {/* Catch all - redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch all - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

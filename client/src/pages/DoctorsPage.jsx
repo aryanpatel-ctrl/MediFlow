@@ -1,30 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../layouts/AppLayout";
-import { useAuth } from "../hooks";
+import { useAuth, useHospitalSettings } from "../hooks";
 import api from "../services/api";
 import AddDoctorModal from "../components/AddDoctorModal";
-
-const SPECIALTY_PRIORITY = [
-  "General Medicine",
-  "Pediatrics",
-  "Cardiology",
-  "Orthopedics",
-  "Dermatology",
-  "Neurology",
-  "ENT",
-  "Ophthalmology",
-  "Gastroenterology",
-  "Pulmonology",
-  "Psychiatry",
-  "Gynecology",
-  "Emergency",
-];
 
 const PORTRAIT_TONES = ['peach', 'mint', 'sky', 'sand', 'rose', 'slate', 'blush', 'stone', 'lilac', 'cream'];
 
 function DoctorsPage() {
   const { user } = useAuth();
+  const { specialties } = useHospitalSettings();
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,9 +89,7 @@ function DoctorsPage() {
 
   const specialtyTabs = [
     "All",
-    ...SPECIALTY_PRIORITY.filter((specialty) =>
-      doctors.some((doctor) => doctor.specialty === specialty)
-    )
+    ...specialties
   ];
 
   const filteredDoctors = doctors.filter(doc => {

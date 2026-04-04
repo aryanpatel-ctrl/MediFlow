@@ -1,6 +1,6 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 const Medicine = require('../models/Medicine');
-require('dotenv').config();
 
 const medicines = [
   // Analgesics/Pain Relief
@@ -1006,7 +1006,7 @@ const medicines = [
 
 const seedMedicines = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/crafton';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/crafton';
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB');
 
